@@ -251,4 +251,8 @@ util.shift_layer = function(layer, shift)
   return layer
 end
 
+util.area = function(origin, radius)
+  return {{origin[1] - radius, origin[2] - radius}, {origin[1] + radius, origin[2] + radius}}
+end
+
 return util
