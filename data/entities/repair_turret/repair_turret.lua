@@ -62,7 +62,7 @@ turret.energy_source =
 {
   type = "void"
 }
-turret.collision_box = util.area({0,0}, 0.8)
+turret.collision_box = util.area({0,0}, 0.7)
 turret.selection_box = util.area({0,0}, 1)
 turret.working_sound = nil
 turret.base = picture
@@ -81,6 +81,8 @@ item.localised_name = {name}
 item.icon = turret.icon
 item.icon_size = turret.icon_size
 item.place_result = name
+item.subgroup = "defensive-structure"
+item.order = "b[turret]-az[repair-turret]"
 
 local beam = util.copy(data.raw.beam["laser-beam"])
 util.recursive_hack_tint(beam, {g = 1, r = 0.2, b = 0.2})
@@ -129,7 +131,7 @@ local recipe =
     {"steel-plate", 5},
     {"iron-gear-wheel", 5}
   },
-  energy_required = 2,
+  energy_required = 10,
   result = name
 }
 
