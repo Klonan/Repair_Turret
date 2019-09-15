@@ -1,14 +1,16 @@
-local turret_update_interval = 13
-local repair_update_interval = 29
+local turret_update_interval = 9
+local repair_update_interval = 53
 
 local script_data =
 {
   turrets = {},
+  turret_map = {},
   active_turrets = {},
   repair_queue = {}
 }
 
 local turret_name = require("shared").entities.repair_turret
+local repair_range = require("shared").repair_range
 
 local on_player_created = function(event)
   local player = game.get_player(event.player_index)
@@ -25,13 +27,100 @@ local add_to_repair_queue = function(entity)
 
 end
 
+local map_resolution = repair_range
+local floor = math.floor
+
+local to_map_position = function(position)
+  local x = floor(position.x / map_resolution)
+  local y = floor(position.y / map_resolution)
+  return x, y
+end
+
+local insert = table.insert
+local add_to_turret_map = function(turret)
+  local x, y = to_map_position(turret.position)
+  local map = script_data.turret_map
+  if not map[x] then
+    map[x] = {}
+  end
+
+  if not map[x][y] then
+    map[x][y] = {}
+  end
+
+  insert(map[x][y], turret)
+
+end
+
+local get_turrets_in_map = function(x, y)
+  local map = script_data.turret_map
+  return map[x] and map[x][y]
+end
+
+local abs = math.abs
+
+local find_turret_for_repair = function(entity, radius)
+  local radius = radius or 1
+  local position = entity.position
+  local force = entity.force
+  local surface = entity.surface
+
+  --if not in any construction range, short-circuit...
+  local networks = surface.find_logistic_networks_by_construction_area(position, force)
+  if not next(networks) then return end
+
+  local nearby = {}
+  local active_turrets = script_data.active_turrets
+
+  local check_turret = function(turret)
+    local unit_number = turret.unit_number
+    if
+      turret ~= entity and
+      (not active_turrets[unit_number]) and
+      turret.force == force and
+      turret.surface == surface and
+      turret.has_items_inside()
+    then
+      nearby[unit_number] = turret
+    end
+  end
+
+  local x, y = to_map_position(position)
+
+  for X = x - radius, x + radius do
+    for Y = y - radius, y + radius do
+      local turrets = get_turrets_in_map(X, Y)
+      if turrets then
+        for k, turret in pairs (turrets) do
+          if not turret.valid then
+            turrets[k] = nil
+          else
+            check_turret(turret)
+          end
+        end
+      end
+    end
+  end
+
+  if not next(nearby) then return end
+  local closest = surface.get_closest(position, nearby)
+  local closest_position = closest.position
+  if abs(closest_position.x - position.x) > repair_range then return end
+  if abs(closest_position.y - position.y) > repair_range then return end
+
+  return closest
+
+end
+
 local on_created_entity = function(event)
   local entity = event.created_entity
   if not (entity and entity.valid) then return end
 
   if entity.name ~= turret_name then return end
 
-  script_data.turrets[entity.unit_number] = entity
+  add_to_turret_map(entity)
+
+  --script_data.turrets[entity.unit_number] = entity
 
 end
 
@@ -61,9 +150,9 @@ local update_turret = function(turret_data)
   stack.drain_durability(max_repair / repair_speed)
   turret.surface.create_entity
   {
-    name = "laser-beam",
-    source_position = turret.position,
-    target_position = entity.position,
+    name = "repair-beam",
+    source_position = {turret.position.x, turret.position.y - 2.5},
+    target = entity,
     duration = turret_update_interval,
     position = turret.position,
     force = turret.force
@@ -90,29 +179,12 @@ local check_repair = function(entity)
   if not (entity and entity.valid) then return true end
   if entity.get_health_ratio() == 1 then return true end
 
-  entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
+  --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
 
-  local position = entity.position
+  local turret = find_turret_for_repair(entity, 1)
+  if not turret then return end
 
-  local active_turrets = script_data.active_turrets
-  local nearby_turrets = {}
-  local networks = entity.surface.find_logistic_networks_by_construction_area(position, entity.force)
-  for k, network in pairs (networks) do
-    local turret = network.find_cell_closest_to(position).owner
-    local unit_number = turret.unit_number
-    if turret.name == turret_name and
-      turret ~= entity and
-      (not active_turrets[turret.unit_number]) and
-      turret.has_items_inside() then
-      nearby_turrets[turret.unit_number] = turret
-    end
-  end
-
-  if not next(nearby_turrets) then return end
-
-  local closest_turret = entity.surface.get_closest(position, nearby_turrets)
-
-  activate_turret(closest_turret, entity)
+  activate_turret(turret, entity)
   return true
 
 
