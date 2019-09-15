@@ -152,7 +152,7 @@ local update_turret = function(turret_data)
     name = "repair-beam",
     source_position = {turret.position.x, turret.position.y - 2.5},
     target = entity,
-    duration = turret_update_interval,
+    duration = turret_update_interval - 1,
     position = turret.position,
     force = turret.force
   }
