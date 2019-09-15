@@ -36,7 +36,6 @@ local to_map_position = function(position)
   return x, y
 end
 
-local insert = table.insert
 local add_to_turret_map = function(turret)
   local x, y = to_map_position(turret.position)
   local map = script_data.turret_map
@@ -48,7 +47,7 @@ local add_to_turret_map = function(turret)
     map[x][y] = {}
   end
 
-  insert(map[x][y], turret)
+  map[x][y][turret.unit_number] = turret
 
 end
 
@@ -113,7 +112,7 @@ local find_turret_for_repair = function(entity, radius)
 end
 
 local on_created_entity = function(event)
-  local entity = event.created_entity
+  local entity = event.created_entity or event.entity or event.destination
   if not (entity and entity.valid) then return end
 
   if entity.name ~= turret_name then return end
@@ -230,6 +229,10 @@ lib.events =
 {
   [defines.events.on_player_created] = on_player_created,
   [defines.events.on_built_entity] = on_created_entity,
+  [defines.events.on_robot_built_entity] = on_created_entity,
+  [defines.events.on_robot_built_entity] = on_created_entity,
+  [defines.events.script_raised_built] = on_created_entity,
+  [defines.events.script_raised_revive] = on_created_entity,
   [defines.events.on_tick] = on_tick,
   [defines.events.on_entity_damaged] = on_entity_damaged
 }
