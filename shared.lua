@@ -7,6 +7,6 @@ data.entities =
   repair_turret = "repair-turret",
 }
 
-data.repair_range = 32
+data.repair_range = 25
 
 return data
