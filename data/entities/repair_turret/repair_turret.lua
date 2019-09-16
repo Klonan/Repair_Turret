@@ -90,10 +90,25 @@ item.order = "b[turret]-az[repair-turret]"
 
 local beam = util.copy(data.raw.beam["laser-beam"])
 util.recursive_hack_tint(beam, {g = 1, r = 0.2, b = 0.2})
-beam.damage_interval = 10000
+beam.damage_interval = 1
 beam.name = "repair-beam"
 beam.localised_name = "repair-beam"
-beam.action = nil
+beam.action_triggered_automatically = true
+beam.action =
+{
+  type = "direct",
+  action_delivery =
+  {
+    type = "instant",
+    target_effects =
+    {
+      {
+        type = "damage",
+        damage = { amount = -1, type = util.damage_type("repair")}
+      }
+    }
+  }
+}
 
 local technology =
 {
@@ -138,6 +153,103 @@ local recipe =
   energy_required = 10,
   result = name
 }
+
+local n1 = 0
+local n = function()
+  n1 = n1 + 1
+  return n1
+end
+
+local upgrade_technologies =
+{
+  {
+    name = "repair-turret-power-"..n(),
+    localised_name = {"repair-turret-power"},
+    type = "technology",
+    icon = turret.icon,
+    icon_size = turret.icon_size,
+    upgrade = true,
+    effects =
+    {
+      {
+        type = "nothing",
+        effect_description = {"repair-turret-power-description"}
+      }
+    },
+
+    prerequisites = {name},
+    unit =
+    {
+      count = 200,
+      ingredients =
+      {
+        {"automation-science-pack", 1},
+        {"logistic-science-pack", 1}
+      },
+      time = 30
+    },
+    order = name
+  },
+  {
+    name = "repair-turret-power-"..n(),
+    localised_name = {"repair-turret-power"},
+    type = "technology",
+    icon = turret.icon,
+    icon_size = turret.icon_size,
+    upgrade = true,
+    effects =
+    {
+      {
+        type = "nothing",
+        effect_description = {"repair-turret-power-description"}
+      }
+    },
+    prerequisites = {"repair-turret-power-"..n1-1},
+    unit =
+    {
+      count = 200,
+      ingredients =
+      {
+        {"automation-science-pack", 1},
+        {"logistic-science-pack", 1},
+        {"chemical-science-pack", 1},
+      },
+      time = 30
+    },
+    order = name
+  },
+  {
+    name = "repair-turret-power-"..n(),
+    localised_name = {"repair-turret-power"},
+    type = "technology",
+    icon = turret.icon,
+    icon_size = turret.icon_size,
+    upgrade = true,
+    effects =
+    {
+      {
+        type = "nothing",
+        effect_description = {"repair-turret-power-description"}
+      }
+    },
+    prerequisites = {"repair-turret-power-"..n1-1},
+    unit =
+    {
+      count = 200,
+      ingredients =
+      {
+        {"automation-science-pack", 1},
+        {"logistic-science-pack", 1},
+        {"chemical-science-pack", 1},
+        {"utility-science-pack", 1},
+      },
+      time = 30
+    },
+    order = name
+  },
+}
+
+data:extend(upgrade_technologies)
 
 
 data:extend

@@ -1,4 +1,4 @@
-local turret_update_interval = 9
+local turret_update_interval = 11
 local repair_update_interval = 53
 local energy_per_heal = 10000
 
@@ -7,7 +7,8 @@ local script_data =
   turrets = {},
   turret_map = {},
   active_turrets = {},
-  repair_queue = {}
+  repair_queue = {},
+  beam_multiple = {}
 }
 
 local turret_name = require("shared").entities.repair_turret
@@ -82,7 +83,7 @@ local find_turret_for_repair = function(entity, radius)
       turret.force == force and
       turret.surface == surface and
       turret.is_connected_to_electric_network() and
-      turret.energy > energy_per_heal
+      turret.energy >= (energy_per_heal * turret_update_interval)
     then
       nearby[unit_number] = turret
     end
@@ -129,6 +130,10 @@ local on_created_entity = function(event)
 
 end
 
+local get_beam_multiple = function(force)
+  return script_data.beam_multiple[force.index] or 1
+end
+
 local update_turret = function(turret_data)
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
@@ -138,28 +143,28 @@ local update_turret = function(turret_data)
 
   if entity.get_health_ratio() == 1 then return true end
 
-
-  local needed_repair = entity.prototype.max_health - entity.health
-
-  local max_repair = math.min(turret_update_interval, needed_repair)
-
   local turret_energy = turret.energy
-  if turret_energy < (max_repair * energy_per_heal) then
+  new_energy = turret_energy - (turret_update_interval * energy_per_heal)
+  if new_energy < 0 then
     return
   end
 
-  entity.health = entity.health + max_repair
-  turret.energy = turret.energy - (max_repair * energy_per_heal)
+  --entity.health = entity.health + max_repair
+  turret.energy = new_energy
 
-  turret.surface.create_entity
-  {
-    name = "repair-beam",
-    source_position = {turret.position.x, turret.position.y - 2.5},
-    target = entity,
-    duration = turret_update_interval - 1,
-    position = turret.position,
-    force = turret.force
-  }
+  for k = 1, get_beam_multiple(turret.force) do
+
+    turret.surface.create_entity
+    {
+      name = "repair-beam",
+      source_position = {turret.position.x, turret.position.y - 2.5},
+      target = entity,
+      duration = turret_update_interval - 1,
+      position = turret.position,
+      force = turret.force
+    }
+
+  end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
 
@@ -221,6 +226,24 @@ local on_entity_damaged = function(event)
   add_to_repair_queue(entity)
 end
 
+local on_research_finished = function(event)
+  local research = event.research
+  if not (research and research.valid) then return end
+
+  local name = research.name
+
+
+  if not name:find("repair%-turret%-power") then return end
+
+  local number = name:sub(name:len())
+  if not tonumber(number) then return end
+
+  local index = research.force.index
+
+  script_data.beam_multiple[index] = math.max(script_data.beam_multiple[index] or 1, (number + 1))
+
+end
+
 
 local lib = {}
 
@@ -233,7 +256,9 @@ lib.events =
   [defines.events.script_raised_built] = on_created_entity,
   [defines.events.script_raised_revive] = on_created_entity,
   [defines.events.on_tick] = on_tick,
-  [defines.events.on_entity_damaged] = on_entity_damaged
+  [defines.events.on_entity_damaged] = on_entity_damaged,
+  [defines.events.on_research_finished] = on_research_finished,
+
 }
 
 lib.on_load = function()
