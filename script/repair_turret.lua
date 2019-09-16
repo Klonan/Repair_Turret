@@ -20,6 +20,8 @@ end
 
 local add_to_repair_queue = function(entity)
 
+  if entity.has_flag("not-repairable") then return end
+
   local unit_number = entity.unit_number
   if not unit_number then return end
 
