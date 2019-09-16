@@ -1,5 +1,6 @@
 local turret_update_interval = 9
 local repair_update_interval = 53
+local energy_per_heal = 10000
 
 local script_data =
 {
@@ -78,7 +79,8 @@ local find_turret_for_repair = function(entity, radius)
       (not active_turrets[unit_number]) and
       turret.force == force and
       turret.surface == surface and
-      turret.has_items_inside()
+      turret.is_connected_to_electric_network() and
+      turret.energy > energy_per_heal
     then
       nearby[unit_number] = turret
     end
@@ -117,6 +119,8 @@ local on_created_entity = function(event)
 
   if entity.name ~= turret_name then return end
 
+  --entity.energy = 0
+
   add_to_turret_map(entity)
 
   --script_data.turrets[entity.unit_number] = entity
@@ -132,21 +136,19 @@ local update_turret = function(turret_data)
 
   if entity.get_health_ratio() == 1 then return true end
 
-  local stack = turret.get_inventory(defines.inventory.roboport_material)[1]
-  if not (stack and stack.valid and stack.valid_for_read) then
-    add_to_repair_queue(entity)
-    return true
-  end
 
   local needed_repair = entity.prototype.max_health - entity.health
 
-  local repair_prototype = stack.prototype
-  local repair_speed = repair_prototype.speed
+  local max_repair = math.min(turret_update_interval, needed_repair)
 
-  local max_repair = math.min(repair_speed * turret_update_interval, needed_repair)
+  local turret_energy = turret.energy
+  if turret_energy < (max_repair * energy_per_heal) then
+    return
+  end
 
   entity.health = entity.health + max_repair
-  stack.drain_durability(max_repair / repair_speed)
+  turret.energy = turret.energy - (max_repair * energy_per_heal)
+
   turret.surface.create_entity
   {
     name = "repair-beam",
@@ -157,12 +159,7 @@ local update_turret = function(turret_data)
     force = turret.force
   }
 
-
-
-
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
-
-
 
 end
 

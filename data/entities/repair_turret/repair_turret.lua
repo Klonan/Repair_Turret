@@ -54,14 +54,18 @@ turret.icon_size = 90
 turret.logistics_radius = 0
 turret.construction_radius = repair_range
 turret.robot_slots_count = 0
-turret.material_slots_count = 1
+turret.material_slots_count = 0
 turret.charging_offsets = {}
 turret.charging_energy = "0W"
-turret.energy_usage = "0W"
+turret.energy_usage = "1kW"
 turret.energy_source =
 {
-  type = "void"
+  type = "electric",
+  usage_priority = "secondary-input",
+  input_flow_limit = "0.1MW",
+  buffer_capacity = "1MJ"
 }
+turret.recharge_minimum = "0W"
 turret.collision_box = util.area({0,0}, 0.7)
 turret.selection_box = util.area({0,0}, 1)
 turret.working_sound = nil
