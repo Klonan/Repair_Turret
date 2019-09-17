@@ -8,7 +8,8 @@ local script_data =
   turret_map = {},
   active_turrets = {},
   repair_queue = {},
-  beam_multiple = {}
+  beam_multiple = {},
+  beam_efficiency = {}
 }
 
 local turret_name = require("shared").entities.repair_turret
@@ -60,8 +61,17 @@ local get_turrets_in_map = function(x, y)
   return map[x] and map[x][y]
 end
 
-local abs = math.abs
+local get_beam_multiple = function(force)
+  return script_data.beam_multiple[force.index] or 1
+end
 
+local get_needed_energy = function(force)
+  local base = energy_per_heal * turret_update_interval
+  local modifier = script_data.beam_efficiency[force.index] or 1
+  return base * modifier
+end
+
+local abs = math.abs
 local find_turret_for_repair = function(entity, radius)
   local radius = radius or 1
   local position = entity.position
@@ -83,7 +93,7 @@ local find_turret_for_repair = function(entity, radius)
       turret.force == force and
       turret.surface == surface and
       turret.is_connected_to_electric_network() and
-      turret.energy >= (energy_per_heal * turret_update_interval)
+      turret.energy >= get_needed_energy(force)
     then
       nearby[unit_number] = turret
     end
@@ -130,10 +140,6 @@ local on_created_entity = function(event)
 
 end
 
-local get_beam_multiple = function(force)
-  return script_data.beam_multiple[force.index] or 1
-end
-
 local update_turret = function(turret_data)
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
@@ -144,7 +150,7 @@ local update_turret = function(turret_data)
   if entity.get_health_ratio() == 1 then return true end
 
   local turret_energy = turret.energy
-  new_energy = turret_energy - (turret_update_interval * energy_per_heal)
+  new_energy = turret_energy - get_needed_energy(turret.force)
   if new_energy < 0 then
     return
   end
@@ -232,15 +238,21 @@ local on_research_finished = function(event)
 
   local name = research.name
 
+  if name:find("repair%-turret%-power") then
+    local number = name:sub(name:len())
+    if not tonumber(number) then return end
+    local index = research.force.index
+    script_data.beam_multiple[index] = math.max(script_data.beam_multiple[index] or 1, (number + 1))
+  end
 
-  if not name:find("repair%-turret%-power") then return end
-
-  local number = name:sub(name:len())
-  if not tonumber(number) then return end
-
-  local index = research.force.index
-
-  script_data.beam_multiple[index] = math.max(script_data.beam_multiple[index] or 1, (number + 1))
+  if name:find("repair%-turret%-efficiency") then
+    local number = name:sub(name:len())
+    if not tonumber(number) then return end
+    local index = research.force.index
+    local amount = 1 - (number / 4)
+    game.print(number.." - "..amount)
+    script_data.beam_efficiency[index] = math.min(script_data.beam_efficiency[index] or 1, amount)
+  end
 
 end
 

@@ -160,7 +160,7 @@ local n = function()
   return n1
 end
 
-local upgrade_technologies =
+local power_technologies =
 {
   {
     name = "repair-turret-power-"..n(),
@@ -248,8 +248,98 @@ local upgrade_technologies =
     order = name
   },
 }
+data:extend(power_technologies)
 
-data:extend(upgrade_technologies)
+n1 = 0
+
+local efficiency_technologies =
+{
+  {
+    name = "repair-turret-efficiency-"..n(),
+    localised_name = {"repair-turret-efficiency"},
+    type = "technology",
+    icon = turret.icon,
+    icon_size = turret.icon_size,
+    upgrade = true,
+    effects =
+    {
+      {
+        type = "nothing",
+        effect_description = {"repair-turret-efficiency-description"}
+      }
+    },
+    prerequisites = {name},
+    unit =
+    {
+      count = 200,
+      ingredients =
+      {
+        {"automation-science-pack", 1},
+        {"logistic-science-pack", 1}
+      },
+      time = 30
+    },
+    order = name
+  },
+  {
+    name = "repair-turret-efficiency-"..n(),
+    localised_name = {"repair-turret-efficiency"},
+    type = "technology",
+    icon = turret.icon,
+    icon_size = turret.icon_size,
+    upgrade = true,
+    effects =
+    {
+      {
+        type = "nothing",
+        effect_description = {"repair-turret-efficiency-description"}
+      }
+    },
+    prerequisites = {"repair-turret-efficiency-"..n1-1},
+    unit =
+    {
+      count = 200,
+      ingredients =
+      {
+        {"automation-science-pack", 1},
+        {"logistic-science-pack", 1},
+        {"chemical-science-pack", 1},
+      },
+      time = 30
+    },
+    order = name
+  },
+  {
+    name = "repair-turret-efficiency-"..n(),
+    localised_name = {"repair-turret-efficiency"},
+    type = "technology",
+    icon = turret.icon,
+    icon_size = turret.icon_size,
+    upgrade = true,
+    effects =
+    {
+      {
+        type = "nothing",
+        effect_description = {"repair-turret-efficiency-description"}
+      }
+    },
+    prerequisites = {"repair-turret-efficiency-"..n1-1},
+    unit =
+    {
+      count = 200,
+      ingredients =
+      {
+        {"automation-science-pack", 1},
+        {"logistic-science-pack", 1},
+        {"chemical-science-pack", 1},
+        {"utility-science-pack", 1},
+      },
+      time = 30
+    },
+    order = name
+  },
+}
+data:extend(efficiency_technologies)
 
 
 data:extend
