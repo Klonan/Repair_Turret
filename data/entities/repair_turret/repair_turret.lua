@@ -146,9 +146,9 @@ local recipe =
   enabled = false,
   ingredients =
   {
-    {"electronic-circuit", 4},
+    {"iron-gear-wheel", 10},
     {"steel-plate", 5},
-    {"iron-gear-wheel", 5}
+    {"repair-pack", 5},
   },
   energy_required = 10,
   result = name
