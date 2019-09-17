@@ -49,35 +49,38 @@ local animation =
 
 turret.name = name
 turret.localised_name = {name}
+turret.localised_description = {name.."-description"}
 turret.icon = path.."repair_turret_icon.png"
 turret.icon_size = 182
 turret.logistics_radius = 0
+turret.logistics_connection_distance = repair_range
 turret.construction_radius = repair_range
 turret.robot_slots_count = 0
 turret.material_slots_count = 0
-turret.charging_offsets = {}
-turret.charging_energy = "0W"
+turret.charging_energy = "1MW"
 turret.energy_usage = "1kW"
 turret.energy_source =
 {
   type = "electric",
   usage_priority = "secondary-input",
   input_flow_limit = "0.1MW",
-  buffer_capacity = "1MJ"
+  buffer_capacity = "2MJ"
 }
-turret.recharge_minimum = "0W"
+turret.recharge_minimum = "1J"
 turret.collision_box = util.area({0,0}, 0.7)
 turret.selection_box = util.area({0,0}, 1)
+turret.drawing_box = {{-1, -2.5},{1, 1}}
 turret.working_sound = nil
 turret.base = picture
 turret.base_animation = animation
 turret.base_patch = util.empty_sprite()
-turret.recharging_animation = util.empty_sprite()
+turret.charging_offsets = {{0, -2}}
+--turret.recharging_animation = util.empty_sprite()
 turret.door_animation_down = util.empty_sprite()
 turret.door_animation_up = util.empty_sprite()
 turret.circuit_wire_max_distance = 0
 turret.corpse = "small-remnants"
-turret.minable = {result = name, mining_time = 1}
+turret.minable = {result = name, mining_time = 0.5}
 
 local item = util.copy(data.raw.item.roboport)
 item.name = name
@@ -87,6 +90,7 @@ item.icon_size = turret.icon_size
 item.place_result = name
 item.subgroup = "defensive-structure"
 item.order = "b[turret]-az[repair-turret]"
+item.stack_size = 20
 
 local beam = util.copy(data.raw.beam["laser-beam"])
 util.recursive_hack_tint(beam, {g = 1, r = 0.2, b = 0.2})

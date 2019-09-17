@@ -250,7 +250,6 @@ local on_research_finished = function(event)
     if not tonumber(number) then return end
     local index = research.force.index
     local amount = 1 - (number / 4)
-    game.print(number.." - "..amount)
     script_data.beam_efficiency[index] = math.min(script_data.beam_efficiency[index] or 1, amount)
   end
 
@@ -261,7 +260,7 @@ local lib = {}
 
 lib.events =
 {
-  [defines.events.on_player_created] = on_player_created,
+  --[defines.events.on_player_created] = on_player_created,
   [defines.events.on_built_entity] = on_created_entity,
   [defines.events.on_robot_built_entity] = on_created_entity,
   [defines.events.on_robot_built_entity] = on_created_entity,
