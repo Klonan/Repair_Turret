@@ -28,7 +28,7 @@ local picture = {layers = {
     direction_count = 1,
     frame_count = 1,
     shift = util.by_pixel(-4/2, -1/2),
-    tint = {g = 1, r = 1, b = 0, a = 0.5},
+    tint = {g = 1, r = 0, b = 0, a = 0.5},
     scale = 0.5
     --apply_runtime_tint = true
   }
@@ -50,7 +50,7 @@ local animation =
 turret.name = name
 turret.localised_name = {name}
 turret.icon = path.."repair_turret_icon.png"
-turret.icon_size = 90
+turret.icon_size = 182
 turret.logistics_radius = 0
 turret.construction_radius = repair_range
 turret.robot_slots_count = 0
