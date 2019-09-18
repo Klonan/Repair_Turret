@@ -266,6 +266,7 @@ lib.events =
   [defines.events.on_robot_built_entity] = on_created_entity,
   [defines.events.script_raised_built] = on_created_entity,
   [defines.events.script_raised_revive] = on_created_entity,
+  [defines.events.on_entity_cloned] = on_created_entity,
   [defines.events.on_tick] = on_tick,
   [defines.events.on_entity_damaged] = on_entity_damaged,
   [defines.events.on_research_finished] = on_research_finished,
