@@ -69,6 +69,7 @@ turret.energy_source =
 turret.recharge_minimum = "1J"
 turret.collision_box = util.area({0,0}, 0.7)
 turret.selection_box = util.area({0,0}, 1)
+turret.hit_visualization_box = util.area({0, -2.5}, 0.1)
 turret.drawing_box = {{-1, -2.5},{1, 1}}
 turret.working_sound = nil
 turret.base = picture

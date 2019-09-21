@@ -57,8 +57,11 @@ local add_to_turret_map = function(turret)
 end
 
 local get_turrets_in_map = function(x, y)
+  --game.print("HI"..x..y)
   local map = script_data.turret_map
-  return map[x] and map[x][y]
+  local turrets = map[x] and map[x][y]
+  --game.print(serpent.line(turrets))
+  return turrets
 end
 
 local get_beam_multiple = function(force)
@@ -126,6 +129,68 @@ local find_turret_for_repair = function(entity, radius)
 
 end
 
+local connect_beams = function(entity)
+
+  local x, y = to_map_position(entity.position)
+  local radius = 1
+
+  --[[for X = x - radius, x + radius do
+    for Y = y - radius, y + radius do
+      local turrets = get_turrets_in_map(X, Y)
+      if turrets then
+        for k, turret in pairs (turrets) do
+          if turret.valid then
+            turret.surface.create_entity
+            {
+              name = "repair-beam",
+              source_position = {turret.position.x, turret.position.y - 2.5},
+              --source = turret,
+              target = entity,
+              --target = {entity.position.x, entity.position.y - 2.5},
+              --duration = turret_update_interval - 1,
+              position = turret.position,
+              force = turret.force
+            }
+            game.print("HI")
+          end
+        end
+      end
+    end
+  end]]
+
+  local turret = find_turret_for_repair(entity)
+
+  if turret then
+    turret.surface.create_entity
+    {
+      name = "repair-beam",
+      source_position = {turret.position.x, turret.position.y - 2.5},
+      --source = turret,
+      target = entity,
+      --target = {entity.position.x, entity.position.y - 2.5},
+      --duration = turret_update_interval - 1,
+      position = turret.position,
+      force = turret.force
+    }
+
+    local turret_2 = find_turret_for_repair(turret)
+    if turret_2 then
+      turret_2.surface.create_entity
+      {
+        name = "repair-beam",
+        source_position = {turret_2.position.x, turret_2.position.y - 2.5},
+        --source = turret,
+        target = turret,
+        --target = {entity.position.x, entity.position.y - 2.5},
+        --duration = turret_update_interval - 1,
+        position = turret.position,
+        force = turret.force
+      }
+    end
+  end
+
+end
+
 local on_created_entity = function(event)
   local entity = event.created_entity or event.entity or event.destination
   if not (entity and entity.valid) then return end
@@ -135,6 +200,8 @@ local on_created_entity = function(event)
   --entity.energy = 0
 
   add_to_turret_map(entity)
+
+  connect_beams(entity)
 
   --script_data.turrets[entity.unit_number] = entity
 
