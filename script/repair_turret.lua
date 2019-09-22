@@ -1,4 +1,5 @@
-local turret_update_interval = 11
+local pathfinding = require("pathfinding")
+local turret_update_interval = 23
 local repair_update_interval = 53
 local energy_per_heal = 10000
 
@@ -201,10 +202,45 @@ local on_created_entity = function(event)
 
   add_to_turret_map(entity)
 
-  connect_beams(entity)
+  --connect_beams(entity)
 
   --script_data.turrets[entity.unit_number] = entity
 
+end
+
+local highlight_path = function(source, path)
+    --The pretty effect; time to pathfind
+
+  local make_beam = function(source, target, duration)
+    source.surface.create_entity
+    {
+      name = "repair-beam",
+      source = source,
+      source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
+      --target = target,
+      --source_position = {source.position.x, source.position.y - 3},
+      target_position = {target.position.x, target.position.y - 2.5},
+      duration = duration,
+      position = source.position,
+      force = source.force
+    }
+  end
+
+  local i = 1
+  local last_target = source
+  while true do
+    local cell = path[i]
+    if cell then
+      local source = cell.owner
+      if last_target then
+        make_beam(last_target, source, math.min((i + 1) * 4, turret_update_interval * 4))
+      end
+      last_target = source
+      i = i + 1
+    else
+      break
+    end
+  end
 end
 
 local update_turret = function(turret_data)
@@ -222,8 +258,46 @@ local update_turret = function(turret_data)
     return
   end
 
+  local turret_cell = turret.logistic_cell
+  local logistic_network = turret_cell.logistic_network
+  if not logistic_network then return end
+  local pickup_point = logistic_network.select_pickup_point{name = "repair-pack", position = turret.position, include_buffers = true}
+
+  if not pickup_point then
+    add_to_repair_queue(entity)
+    return true
+  end
+
+  local stack
+  local owner = pickup_point.owner
+  if owner.type == "roboport" then
+    stack = owner.get_inventory(defines.inventory.roboport_material).find_item_stack("repair-pack")
+  else
+    stack = owner.get_output_inventory().find_item_stack("repair-pack")
+  end
+
+  if not (stack and stack.valid and stack.valid_for_read) then
+    add_to_repair_queue(entity)
+    return true
+  end
+
+  local path = pathfinding.get_cell_path(owner, turret_cell, logistic_network)
+  if not path then
+    add_to_repair_queue(entity)
+    return true
+  end
+
+  highlight_path(owner, path)
+
+
+
+  stack.drain_durability(turret_update_interval)
+
+
+
   --entity.health = entity.health + max_repair
   turret.energy = new_energy
+
 
   for k = 1, get_beam_multiple(turret.force) do
 
@@ -241,6 +315,8 @@ local update_turret = function(turret_data)
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
 
+
+
 end
 
 local activate_turret = function(turret, entity)
@@ -248,7 +324,12 @@ local activate_turret = function(turret, entity)
     error("Turret already active?")
   end
   assert(turret.name == turret_name)
-  script_data.active_turrets[turret.unit_number] = {turret = turret, entity = entity}
+  script_data.active_turrets[turret.unit_number] =
+  {
+    turret = turret,
+    point = turret.get_logistic_point(),
+    entity = entity
+  }
 end
 
 local check_repair = function(entity)
