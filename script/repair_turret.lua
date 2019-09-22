@@ -207,23 +207,61 @@ local on_created_entity = function(event)
   --script_data.turrets[entity.unit_number] = entity
 
 end
-
+local insert = table.insert
 local highlight_path = function(source, path)
     --The pretty effect; time to pathfind
 
+  local current_duration = 5
+  local max_duration = turret_update_interval * 3
+
+  local resolution = 4
+
+  local surface = source.surface
+  local force = source.force
+  local huh = 100
+
   local make_beam = function(source, target, duration)
-    source.surface.create_entity
-    {
-      name = "repair-beam",
-      source = source,
-      source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
-      --target = target,
-      --source_position = {source.position.x, source.position.y - 3},
-      target_position = {target.position.x, target.position.y - 2.5},
-      duration = duration,
-      position = source.position,
-      force = source.force
-    }
+    local positions = {}
+    local source_position = source.position
+    local target_position = target.position
+
+    --local dx = (source_position.x - target_position.x) / segments
+    --local dy = (source_position.y - target_position.y) / segments
+    local dx = (target_position.x - source_position.x)
+    local dy = (target_position.y - source_position.y)
+    local distance = dx + dy
+    local segments = math.floor(math.abs(distance) ^ 0.5)
+    dx = dx / segments
+    dy = dy / segments
+
+    if source == target then return end
+    for k = 0, segments do
+      local position = {x = source_position.x + k * dx, y = source_position.y + k * dy, }
+      insert(positions, position)
+    end
+    --insert(positions, target_position)
+
+    for k = 1, #positions do
+      local source_position = positions[k]
+      local target_position = positions[k + 1]
+      if target_position then
+        surface.create_entity
+        {
+          name = "repair-beam",
+          --source = source,
+          --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
+          --target = target,
+          source_position = source.type == "roboport" and {source_position.x, source_position.y - 2.5} or source_position,
+          target_position = {target_position.x, target_position.y - 2.5},
+          duration = current_duration,
+          position = source_position,
+          force = force
+        }
+        current_duration = math.min(current_duration + 2, max_duration)
+      else
+        return
+      end
+    end
   end
 
   local i = 1
@@ -233,7 +271,7 @@ local highlight_path = function(source, path)
     if cell then
       local source = cell.owner
       if last_target then
-        make_beam(last_target, source, math.min((i + 1) * 4, turret_update_interval * 4))
+        make_beam(last_target, source)
       end
       last_target = source
       i = i + 1
