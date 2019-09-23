@@ -19,6 +19,16 @@ local picture = {layers = {
     scale = 0.5
   },
   {
+    filename = path.."repair_turret_shadow.png",
+    width = 330,
+    height = 261,
+    frame_count = 1,
+    direction_count = 1,
+    shift = {3/2, -1.8/2},
+    scale = 0.5,
+    draw_as_shadow = true
+  },
+  {
     filename = path.."repair_turret_mask.png",
     flags = { "mask" },
     line_length = 1,
@@ -31,10 +41,12 @@ local picture = {layers = {
     tint = {g = 1, r = 0, b = 0, a = 0.5},
     scale = 0.5
     --apply_runtime_tint = true
-  }
+  },
 }}
 
 local animation =
+{layers =
+{
 {
   filename = "__base__/graphics/entity/roboport/hr-roboport-base-animation.png",
   priority = "medium",
@@ -45,7 +57,21 @@ local animation =
   shift = {0, -2.5},
   scale = 0.66,
   run_mode = "backward"
+},
+{
+  filename = path.."repair_turret_shadow_animation.png",
+  width = 59,
+  height = 60,
+  animation_speed = 0.4,
+  line_length = 1,
+  frame_count = 8,
+  shift = {3.5, 0.1},
+  draw_as_shadow = true,
+  scale = 0.66,
+  run_mode = "backward"
+  --apply_runtime_tint = true
 }
+}}
 
 turret.name = name
 turret.localised_name = {name}

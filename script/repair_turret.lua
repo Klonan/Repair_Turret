@@ -10,7 +10,8 @@ local script_data =
   active_turrets = {},
   repair_queue = {},
   beam_multiple = {},
-  beam_efficiency = {}
+  beam_efficiency = {},
+  free_pack_migration = true
 }
 
 local turret_name = require("shared").entities.repair_turret
@@ -161,8 +162,6 @@ local highlight_path = function(source, path)
     local source_position = source.position
     local target_position = target.position
 
-    --local dx = (source_position.x - target_position.x) / segments
-    --local dy = (source_position.y - target_position.y) / segments
     local dx = (target_position.x - source_position.x)
     local dy = (target_position.y - source_position.y)
     local distance = ((dx * dx) + (dy * dy)) ^ 0.5
@@ -285,14 +284,18 @@ local update_turret = function(turret_data)
   local pickup_entity, stack = get_pickup_entity(turret)
 
   if pickup_entity ~= turret then
-
-    local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell, turret.logistic_network)
+    local profiler = game.create_profiler()
+    local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
+    --game.print("HI")
     if not path then
       add_to_repair_queue(entity)
       return true
     end
+    --game.print({"", "Pathing ", #path, " ", profiler})
+    profiler.reset()
 
     highlight_path(pickup_entity, path)
+    --game.print({"", "Render ", profiler})
 
   end
 
@@ -425,6 +428,28 @@ lib.events =
 
 lib.on_load = function()
   script_data = global.repair_turret or script_data
+end
+
+lib.on_configuration_changed = function()
+
+
+  if not script_data.free_pack_migration then
+    script_data.free_pack_migration = true
+    if game.item_prototypes["repair-pack"] then
+      for x, y in pairs (script_data.turret_map) do
+        for y, turrets in pairs (y) do
+          for unit_number, turret in pairs (turrets) do
+            if turret.valid then
+              --turret.insert{name = "repair-pack", count = 5}
+            else
+              turrets[unit_number] = nil
+            end
+          end
+        end
+      end
+    end
+  end
+
 end
 
 lib.on_init = function()
