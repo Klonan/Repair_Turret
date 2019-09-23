@@ -211,8 +211,8 @@ local insert = table.insert
 local highlight_path = function(source, path)
     --The pretty effect; time to pathfind
 
-  local current_duration = 5
-  local max_duration = turret_update_interval * 3
+  local current_duration = 8
+  local max_duration = turret_update_interval * 5
 
   local resolution = 4
 
@@ -229,8 +229,9 @@ local highlight_path = function(source, path)
     --local dy = (source_position.y - target_position.y) / segments
     local dx = (target_position.x - source_position.x)
     local dy = (target_position.y - source_position.y)
-    local distance = dx + dy
-    local segments = math.floor(math.abs(distance) ^ 0.5)
+    local distance = ((dx * dx) + (dy * dy)) ^ 0.5
+    local segments = 1 or math.ceil(distance / 10)
+    local time = math.ceil(distance / 10)
     dx = dx / segments
     dy = dy / segments
 
@@ -240,24 +241,23 @@ local highlight_path = function(source, path)
       insert(positions, position)
     end
     --insert(positions, target_position)
-
     for k = 1, #positions do
       local source_position = positions[k]
       local target_position = positions[k + 1]
       if target_position then
+        current_duration = math.min(current_duration + time, max_duration)
         surface.create_entity
         {
           name = "repair-beam",
           --source = source,
           --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
           --target = target,
-          source_position = source.type == "roboport" and {source_position.x, source_position.y - 2.5} or source_position,
+          source_position = (source.type == "roboport" or k > 1) and {source_position.x, source_position.y - 2.5} or source_position,
           target_position = {target_position.x, target_position.y - 2.5},
           duration = current_duration,
           position = source_position,
           force = force
         }
-        current_duration = math.min(current_duration + 2, max_duration)
       else
         return
       end

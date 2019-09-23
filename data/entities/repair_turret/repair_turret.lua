@@ -93,7 +93,13 @@ item.subgroup = "defensive-structure"
 item.order = "b[turret]-az[repair-turret]"
 item.stack_size = 20
 
-local beam = util.copy(data.raw.beam["laser-beam"])
+local laser_beam = util.copy(data.raw.beam["laser-beam"])
+
+local beam = util.copy(data.raw.beam["electric-beam"])
+beam.ground_light_animations = laser_beam.ground_light_animations
+for k, v in pairs (beam.ground_light_animations) do
+  v.repeat_count = 16
+end
 util.recursive_hack_tint(beam, {g = 1, r = 0.2, b = 0.2})
 beam.damage_interval = 1
 beam.name = "repair-beam"
