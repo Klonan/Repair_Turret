@@ -1,7 +1,7 @@
 local pathfinding = require("pathfinding")
 local turret_update_interval = 23
 local repair_update_interval = 53
-local energy_per_heal = 10000
+local energy_per_heal = 100000
 
 local script_data =
 {
@@ -130,68 +130,6 @@ local find_turret_for_repair = function(entity, radius)
 
 end
 
-local connect_beams = function(entity)
-
-  local x, y = to_map_position(entity.position)
-  local radius = 1
-
-  --[[for X = x - radius, x + radius do
-    for Y = y - radius, y + radius do
-      local turrets = get_turrets_in_map(X, Y)
-      if turrets then
-        for k, turret in pairs (turrets) do
-          if turret.valid then
-            turret.surface.create_entity
-            {
-              name = "repair-beam",
-              source_position = {turret.position.x, turret.position.y - 2.5},
-              --source = turret,
-              target = entity,
-              --target = {entity.position.x, entity.position.y - 2.5},
-              --duration = turret_update_interval - 1,
-              position = turret.position,
-              force = turret.force
-            }
-            game.print("HI")
-          end
-        end
-      end
-    end
-  end]]
-
-  local turret = find_turret_for_repair(entity)
-
-  if turret then
-    turret.surface.create_entity
-    {
-      name = "repair-beam",
-      source_position = {turret.position.x, turret.position.y - 2.5},
-      --source = turret,
-      target = entity,
-      --target = {entity.position.x, entity.position.y - 2.5},
-      --duration = turret_update_interval - 1,
-      position = turret.position,
-      force = turret.force
-    }
-
-    local turret_2 = find_turret_for_repair(turret)
-    if turret_2 then
-      turret_2.surface.create_entity
-      {
-        name = "repair-beam",
-        source_position = {turret_2.position.x, turret_2.position.y - 2.5},
-        --source = turret,
-        target = turret,
-        --target = {entity.position.x, entity.position.y - 2.5},
-        --duration = turret_update_interval - 1,
-        position = turret.position,
-        force = turret.force
-      }
-    end
-  end
-
-end
-
 local on_created_entity = function(event)
   local entity = event.created_entity or event.entity or event.destination
   if not (entity and entity.valid) then return end
@@ -201,8 +139,6 @@ local on_created_entity = function(event)
   --entity.energy = 0
 
   add_to_turret_map(entity)
-
-  --connect_beams(entity)
 
   --script_data.turrets[entity.unit_number] = entity
 
@@ -230,38 +166,37 @@ local highlight_path = function(source, path)
     local dx = (target_position.x - source_position.x)
     local dy = (target_position.y - source_position.y)
     local distance = ((dx * dx) + (dy * dy)) ^ 0.5
-    local segments = 1 or math.ceil(distance / 10)
     local time = math.ceil(distance / 10)
-    dx = dx / segments
-    dy = dy / segments
 
-    if source == target then return end
-    for k = 0, segments do
-      local position = {x = source_position.x + k * dx, y = source_position.y + k * dy, }
-      insert(positions, position)
+    if source.type == "logistic-container" then
+      surface.create_entity
+      {
+        name = "repair-beam",
+        --source = source,
+        --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
+        --target = target,
+        source_position = {source_position.x, source_position.y},
+        target_position = {source_position.x, source_position.y - 2.5},
+        duration = current_duration,
+        position = source_position,
+        force = force
+      }
+      current_duration = math.min(current_duration + time, max_duration)
     end
-    --insert(positions, target_position)
-    for k = 1, #positions do
-      local source_position = positions[k]
-      local target_position = positions[k + 1]
-      if target_position then
-        current_duration = math.min(current_duration + time, max_duration)
-        surface.create_entity
-        {
-          name = "repair-beam",
-          --source = source,
-          --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
-          --target = target,
-          source_position = (source.type == "roboport" or k > 1) and {source_position.x, source_position.y - 2.5} or source_position,
-          target_position = {target_position.x, target_position.y - 2.5},
-          duration = current_duration,
-          position = source_position,
-          force = force
-        }
-      else
-        return
-      end
-    end
+
+    current_duration = math.min(current_duration + time, max_duration)
+    surface.create_entity
+    {
+      name = "repair-beam",
+      --source = source,
+      --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
+      --target = target,
+      source_position = {source_position.x, source_position.y - 2.5},
+      target_position = {target_position.x, target_position.y - 2.5},
+      duration = current_duration,
+      position = source_position,
+      force = force
+    }
   end
 
   local i = 1
@@ -281,6 +216,57 @@ local highlight_path = function(source, path)
   end
 end
 
+local repair_items
+local get_repair_items = function()
+  if repair_items then return repair_items end
+  --Deliberately not 'local'
+  repair_items = {}
+  for name, item in pairs (game.item_prototypes) do
+    if item.type == "repair-tool" then
+      repair_items[name] = item
+    end
+  end
+  return repair_items
+end
+
+local get_pickup_entity = function(turret)
+  local inventory = turret.get_inventory(defines.inventory.roboport_material)
+  if not inventory.is_empty() then
+    return turret, inventory[1]
+  end
+
+
+  local position = turret.position
+  local turret_cell = turret.logistic_cell
+  local logistic_network = turret_cell.logistic_network
+  if not logistic_network then return end
+
+  local select_pickup_point = logistic_network.select_pickup_point
+  local pickup_point
+  local repair_item
+  for name, item in pairs(get_repair_items()) do
+    pickup_point = select_pickup_point{name = name, position = position, include_buffers = true}
+    repair_item = name
+    if pickup_point then break end
+  end
+
+  if not pickup_point then return end
+
+  local stack
+  local owner = pickup_point.owner
+  if owner.type == "roboport" then
+    stack = owner.get_inventory(defines.inventory.roboport_material).find_item_stack(repair_item)
+  else
+    stack = owner.get_output_inventory().find_item_stack(repair_item)
+  end
+
+
+  if not (stack and stack.valid and stack.valid_for_read) then return end
+
+  return owner, stack
+
+end
+
 local update_turret = function(turret_data)
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
@@ -296,44 +282,22 @@ local update_turret = function(turret_data)
     return
   end
 
-  local turret_cell = turret.logistic_cell
-  local logistic_network = turret_cell.logistic_network
-  if not logistic_network then return end
-  local pickup_point = logistic_network.select_pickup_point{name = "repair-pack", position = turret.position, include_buffers = true}
+  local pickup_entity, stack = get_pickup_entity(turret)
 
-  if not pickup_point then
-    add_to_repair_queue(entity)
-    return true
+  if pickup_entity ~= turret then
+
+    local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell, turret.logistic_network)
+    if not path then
+      add_to_repair_queue(entity)
+      return true
+    end
+
+    highlight_path(pickup_entity, path)
+
   end
-
-  local stack
-  local owner = pickup_point.owner
-  if owner.type == "roboport" then
-    stack = owner.get_inventory(defines.inventory.roboport_material).find_item_stack("repair-pack")
-  else
-    stack = owner.get_output_inventory().find_item_stack("repair-pack")
-  end
-
-  if not (stack and stack.valid and stack.valid_for_read) then
-    add_to_repair_queue(entity)
-    return true
-  end
-
-  local path = pathfinding.get_cell_path(owner, turret_cell, logistic_network)
-  if not path then
-    add_to_repair_queue(entity)
-    return true
-  end
-
-  highlight_path(owner, path)
-
-
 
   stack.drain_durability(turret_update_interval)
 
-
-
-  --entity.health = entity.health + max_repair
   turret.energy = new_energy
 
 
