@@ -145,10 +145,12 @@ local on_created_entity = function(event)
   --script_data.turrets[entity.unit_number] = entity
 
 end
+
 local insert = table.insert
 local max = math.max
 local min = math.min
 local ceil = math.ceil
+
 local highlight_path = function(source, path)
 
   local current_duration = 8
