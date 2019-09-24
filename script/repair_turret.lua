@@ -150,7 +150,6 @@ local max = math.max
 local min = math.min
 local ceil = math.ceil
 local highlight_path = function(source, path)
-    --The pretty effect; time to pathfind
 
   local current_duration = 8
   local max_duration = turret_update_interval * 5
