@@ -426,7 +426,6 @@ lib.events =
   --[defines.events.on_player_created] = on_player_created,
   [defines.events.on_built_entity] = on_created_entity,
   [defines.events.on_robot_built_entity] = on_created_entity,
-  [defines.events.on_robot_built_entity] = on_created_entity,
   [defines.events.script_raised_built] = on_created_entity,
   [defines.events.script_raised_revive] = on_created_entity,
   [defines.events.on_entity_cloned] = on_created_entity,
