@@ -234,11 +234,11 @@ local get_repair_items = function()
 end
 
 local get_pickup_entity = function(turret)
+
   local inventory = turret.get_inventory(defines.inventory.roboport_material)
   if not inventory.is_empty() then
     return turret, inventory[1]
   end
-
 
   local position = turret.position
   local turret_cell = turret.logistic_cell
@@ -309,7 +309,7 @@ local update_turret = function(turret_data)
 
   end
 
-  stack.drain_durability(turret_update_interval)
+  stack.drain_durability(turret_update_interval / stack.prototype.speed)
 
   turret.energy = new_energy
 
@@ -446,11 +446,12 @@ lib.on_configuration_changed = function()
   if not script_data.free_pack_migration then
     script_data.free_pack_migration = true
     if game.item_prototypes["repair-pack"] then
+      game.print("Klonan: Hello, Repair turrets now require repair packs in the logistic network to repair. As a 'sorry', I have given all repair turrets 5 for free.")
       for x, y in pairs (script_data.turret_map) do
         for y, turrets in pairs (y) do
           for unit_number, turret in pairs (turrets) do
             if turret.valid then
-              --turret.insert{name = "repair-pack", count = 5}
+              turret.insert{name = "repair-pack", count = 5}
             else
               turrets[unit_number] = nil
             end
