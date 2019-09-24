@@ -192,6 +192,157 @@ local recipe =
   result = name
 }
 
+local projectile = util.copy(data.raw.projectile["rocket"])
+projectile.name = "repair-bullet"
+projectile.localised_name = "Repair bullet"
+projectile.smoke = nil
+projectile.acceleration = 0
+projectile.height = 0
+projectile.shadow = nil
+projectile.action =
+{
+  type = "direct",
+  action_delivery =
+  {
+    type = "instant",
+    target_effects =
+    {
+      {
+        type = "damage",
+        damage = { amount = -20, type = util.damage_type("repair")}
+      },
+      {
+        type = "create-entity",
+        entity_name = "transmission-explosion"
+      }
+    }
+  }
+}
+
+projectile.animation =
+{
+  filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+  priority = "high",
+  width = 37,
+  height = 35,
+  frame_count = 16,
+  scale = 1.6,
+  animation_speed = 0.3,
+  repeat_count = 5,
+  shift = {0, 0}
+}
+
+projectile.light =
+{
+  intensity = 0.5, size = 5, color = {r=0.1, g=1.0, b=0.1}, add_perspective = true
+}
+
+local animations =
+{
+  {
+    filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+    priority = "high",
+    width = 37,
+    height = 35,
+    frame_count = 16,
+    scale = 1.6,
+    animation_speed = 0.3,
+    repeat_count = 5,
+    shift = {0, 0.5}
+  },
+  {
+    filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+    priority = "high",
+    width = 37,
+    height = 35,
+    frame_count = 16,
+    scale = 1.5,
+    animation_speed = 0.35,
+    repeat_count = 5,
+    shift = {0, 0.5}
+  },
+  {
+    filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+    priority = "high",
+    width = 37,
+    height = 35,
+    frame_count = 16,
+    scale = 1.4,
+    animation_speed = 0.25,
+    repeat_count = 5,
+    shift = {0, 0.5}
+  }
+}
+util.recursive_hack_tint(animations,{r = 0, g = 1, b = 0})
+
+local explosion =
+{
+  type = "explosion",
+  name = "transmission-explosion",
+  flags = {"not-on-map"},
+  animations = animations,
+  --height = 2.5,
+  light =
+  {
+    {
+      intensity = 0.5, size = 5, color = {r=0.1, g=1.0, b=0.1}, add_perspective = true
+    }
+
+  },
+  sound =
+  {
+    aggregation =
+    {
+      max_count = 1,
+      remove = true
+    },
+    variations =
+    {
+      {
+        filename = "__base__/sound/fight/large-explosion-1.ogg",
+        volume = 0
+      },
+      {
+        filename = "__base__/sound/fight/large-explosion-2.ogg",
+        volume = 0
+      }
+    }
+  },
+  created_effect =
+  {
+    type = "direct",
+    action_delivery =
+    {
+      type = "instant",
+      target_effects =
+      {
+        {
+          type = "create-particle",
+          repeat_count = 1,
+          entity_name = "copper-ore-particle",
+          initial_height = 2.5,
+          speed_from_center = 0.08,
+          speed_from_center_deviation = 0.15,
+          initial_vertical_speed = 0.08,
+          initial_vertical_speed_deviation = 0.15,
+          offset_deviation = {{-0.2, -0.2}, {0.2, 0.2}}
+        }
+      }
+    }
+  }
+}
+
+data:extend
+{
+  turret,
+  item,
+  beam,
+  technology,
+  recipe,
+  projectile,
+  explosion
+}
+
 local n1 = 0
 local n = function()
   n1 = n1 + 1
@@ -378,13 +529,3 @@ local efficiency_technologies =
   },
 }
 data:extend(efficiency_technologies)
-
-
-data:extend
-{
-  turret,
-  item,
-  beam,
-  technology,
-  recipe
-}

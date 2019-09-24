@@ -1,3 +1,4 @@
+local util = require("util")
 local pathfinding = require("pathfinding")
 local turret_update_interval = 23
 local repair_update_interval = 53
@@ -151,10 +152,14 @@ local max = math.max
 local min = math.min
 local ceil = math.ceil
 
+local juggle = function(number, amount)
+  return number + ((math.random() + 0.5) * amount)
+end
+
 local highlight_path = function(source, path)
 
   local current_duration = 8
-  local max_duration = turret_update_interval * 5
+  local max_duration = turret_update_interval * 50
 
   local surface = source.surface
   local create_entity = surface.create_entity
@@ -172,6 +177,7 @@ local highlight_path = function(source, path)
 
     local distance = ((dx * dx) + (dy * dy)) ^ 0.5
     local time = ceil(distance / 10)
+
 
     local energy = source.energy - (transmission_energy_per_meter * distance)
     source.energy = (energy > 0 and energy) or 1
@@ -204,7 +210,40 @@ local highlight_path = function(source, path)
       position = source_position,
       force = force
     }
-  end
+
+    for k = 1, 1 do
+      local explosion = create_entity
+      {
+        name = "transmission-explosion",
+        position = {juggle(x2, 0.1), juggle(y2 - 2.5, 0.1)},
+        --target = target,
+        orientation = math.random()
+      }
+
+            rendering.draw_light
+            {
+              sprite = "utility/light_small",
+              surface = surface,
+              target = explosion,
+              target_offset = {0, 0},
+              color = {r = 0.1, g = 1, b = 0.1},
+              --time_to_live = current_duration + 200,
+              scale = 0.5,
+              intensity = 1
+            }
+    end
+    --[[
+      rendering.draw_light
+      {
+        sprite = "utility/light_medium",
+        surface = surface,
+        target = source,
+        color = {r = 0, g = 1, b = 0},
+        time_to_live = current_duration + 200,
+        intensity = 0.2
+      }
+      ]]
+    end
 
   local i = 1
   local last_target = source
@@ -221,6 +260,7 @@ local highlight_path = function(source, path)
       break
     end
   end
+  return current_duration + 3
 end
 
 local repair_items
@@ -296,6 +336,11 @@ local update_turret = function(turret_data)
     return true
   end
 
+  local distance = util.distance({turret.position.x, turret.position.y - 2.5}, entity.position)
+
+  --how many ticks the projectile should take to hit.
+  local duration = 0
+
   if pickup_entity ~= turret then
 
     local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
@@ -304,8 +349,7 @@ local update_turret = function(turret_data)
       add_to_repair_queue(entity)
       return true
     end
-
-    highlight_path(pickup_entity, path)
+    duration = highlight_path(pickup_entity, path)
 
   end
 
@@ -314,19 +358,32 @@ local update_turret = function(turret_data)
   turret.energy = new_energy
 
 
-  for k = 1, get_beam_multiple(turret.force) do
+  local speed = (distance / (duration + juggle(turret_update_interval, 0.5)))
 
+  --for k = 1, get_beam_multiple(turret.force) do
+    local rocket = turret.surface.create_entity
+    {
+      name = "repair-bullet",
+      speed = speed,
+      position = {turret.position.x, turret.position.y - 2.5},
+      target = entity,
+      force = turret.force
+    }
     turret.surface.create_entity
     {
       name = "repair-beam",
-      source_position = {turret.position.x, turret.position.y - 2.5},
-      target = entity,
-      duration = turret_update_interval - 1,
+      --source_position = {turret.position.x, turret.position.y - 2.5},
+      target_position = {turret.position.x, turret.position.y - 2.5},
+      source = rocket,
+      source_offset = {0, 0},
+      --target = turret,
+      --target = entity,
+      --duration = turret_update_interval - 1,
       position = turret.position,
       force = turret.force
     }
 
-  end
+  --end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
 
