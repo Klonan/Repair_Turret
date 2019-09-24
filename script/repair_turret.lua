@@ -442,11 +442,10 @@ end
 
 lib.on_configuration_changed = function()
 
-
   if not script_data.free_pack_migration then
     script_data.free_pack_migration = true
     if game.item_prototypes["repair-pack"] then
-      game.print("Klonan: Hello, Repair turrets now require repair packs in the logistic network to repair. As a 'sorry', I have given all repair turrets 5 for free.")
+      game.print("Klonan: Hello, Repair turrets now require repair packs in the logistic network to repair. As a 'sorry', I have given all repair turrets 5 repair packs for free.")
       for x, y in pairs (script_data.turret_map) do
         for y, turrets in pairs (y) do
           for unit_number, turret in pairs (turrets) do
