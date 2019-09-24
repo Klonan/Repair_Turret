@@ -6,6 +6,7 @@ Date: 2019-09-24
     - Repair packs being consumed from afar will drain some energy from all the cells they path through along the way.
     - Increased the charging energy of the turrets.
     - Increased the energy usage of the repair beam.
+    - Removed repair pack from the recipe, as now they consume the repair packs to repair. Replaced it with electronic circuit.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2019-09-18
