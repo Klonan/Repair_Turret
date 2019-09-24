@@ -162,11 +162,13 @@ local highlight_path = function(source, path)
   local make_beam = function(source, target, duration)
     local source_position = source.position
     local target_position = target.position
+
     local x1, y1 = source_position.x, source_position.y
     local x2, y2 = target_position.x, target_position.y
 
     local dx = (x1 - x2)
     local dy = (y1 - y2)
+
     local distance = ((dx * dx) + (dy * dy)) ^ 0.5
     local time = ceil(distance / 10)
 
@@ -294,18 +296,15 @@ local update_turret = function(turret_data)
   end
 
   if pickup_entity ~= turret then
-    local profiler = game.create_profiler()
+
     local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
-    --game.print("HI")
+
     if not path then
       add_to_repair_queue(entity)
       return true
     end
-    --game.print({"", "Pathing ", #path, " ", profiler})
-    profiler.reset()
 
     highlight_path(pickup_entity, path)
-    --game.print({"", "Render ", profiler})
 
   end
 
