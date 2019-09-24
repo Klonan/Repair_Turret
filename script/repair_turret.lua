@@ -283,6 +283,11 @@ local update_turret = function(turret_data)
 
   local pickup_entity, stack = get_pickup_entity(turret)
 
+  if not pickup_entity then
+    add_to_repair_queue(entity)
+    return true
+  end
+
   if pickup_entity ~= turret then
     local profiler = game.create_profiler()
     local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
