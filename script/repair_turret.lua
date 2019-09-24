@@ -2,6 +2,7 @@ local pathfinding = require("pathfinding")
 local turret_update_interval = 23
 local repair_update_interval = 53
 local energy_per_heal = 100000
+local transmission_energy_per_meter = 1000
 
 local script_data =
 {
@@ -145,53 +146,57 @@ local on_created_entity = function(event)
 
 end
 local insert = table.insert
+local max = math.max
+local min = math.min
+local ceil = math.ceil
 local highlight_path = function(source, path)
     --The pretty effect; time to pathfind
 
   local current_duration = 8
   local max_duration = turret_update_interval * 5
 
-  local resolution = 4
-
   local surface = source.surface
+  local create_entity = surface.create_entity
   local force = source.force
-  local huh = 100
 
   local make_beam = function(source, target, duration)
-    local positions = {}
     local source_position = source.position
     local target_position = target.position
+    local x1, y1 = source_position.x, source_position.y
+    local x2, y2 = target_position.x, target_position.y
 
-    local dx = (target_position.x - source_position.x)
-    local dy = (target_position.y - source_position.y)
+    local dx = (x1 - x2)
+    local dy = (y1 - y2)
     local distance = ((dx * dx) + (dy * dy)) ^ 0.5
-    local time = math.ceil(distance / 10)
+    local time = ceil(distance / 10)
 
+    local energy = source.energy - (transmission_energy_per_meter * distance)
+    source.energy = (energy > 0 and energy) or 1
     if source.type == "logistic-container" then
-      surface.create_entity
+      create_entity
       {
         name = "repair-beam",
         --source = source,
         --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
         --target = target,
-        source_position = {source_position.x, source_position.y},
-        target_position = {source_position.x, source_position.y - 2.5},
+        source_position = source_position,
+        target_position = {x1, y1 - 2.5},
         duration = current_duration,
         position = source_position,
         force = force
       }
-      current_duration = math.min(current_duration + time, max_duration)
+      current_duration = min(current_duration + 3, max_duration)
     end
 
-    current_duration = math.min(current_duration + time, max_duration)
-    surface.create_entity
+    current_duration = min(current_duration + time, max_duration)
+    create_entity
     {
       name = "repair-beam",
       --source = source,
       --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
       --target = target,
-      source_position = {source_position.x, source_position.y - 2.5},
-      target_position = {target_position.x, target_position.y - 2.5},
+      source_position = {x1, y1 - 2.5},
+      target_position = {x2, y2 - 2.5},
       duration = current_duration,
       position = source_position,
       force = force
