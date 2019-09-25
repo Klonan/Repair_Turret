@@ -339,7 +339,7 @@ local update_turret = function(turret_data)
   local distance = util.distance({turret.position.x, turret.position.y - 2.5}, entity.position)
 
   --how many ticks the projectile should take to hit.
-  local duration = 0
+  local duration = turret_update_interval
 
   if pickup_entity ~= turret then
 
@@ -356,9 +356,9 @@ local update_turret = function(turret_data)
   stack.drain_durability(turret_update_interval / stack.prototype.speed)
 
   turret.energy = new_energy
+  duration = duration + juggle(turret_update_interval, 0.2)
 
-
-  local speed = (distance / (duration + juggle(turret_update_interval, 0.5)))
+  local speed = (distance / duration)
 
   --for k = 1, get_beam_multiple(turret.force) do
     local rocket = turret.surface.create_entity
@@ -387,6 +387,9 @@ local update_turret = function(turret_data)
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
 
+
+  add_to_repair_queue(entity)
+  return true
 
 
 end
