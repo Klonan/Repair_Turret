@@ -128,10 +128,10 @@ for k, v in pairs (beam.ground_light_animations) do
   v.repeat_count = 16
 end
 util.recursive_hack_tint(beam, {g = 1, r = 0.2, b = 0.2})
-beam.damage_interval = 1
+beam.damage_interval = 1000
 beam.name = "repair-beam"
 beam.localised_name = "repair-beam"
-beam.action_triggered_automatically = true
+beam.action_triggered_automatically = false
 beam.action =
 {
   type = "direct",
@@ -209,11 +209,7 @@ projectile.action =
     {
       {
         type = "damage",
-        damage = { amount = -20, type = util.damage_type("repair")}
-      },
-      {
-        type = "create-entity",
-        entity_name = "transmission-explosion"
+        damage = { amount = -30, type = util.damage_type("repair")}
       }
     }
   }
@@ -289,26 +285,9 @@ local explosion =
     }
 
   },
-  sound =
-  {
-    aggregation =
-    {
-      max_count = 1,
-      remove = true
-    },
-    variations =
-    {
-      {
-        filename = "__base__/sound/fight/large-explosion-1.ogg",
-        volume = 0
-      },
-      {
-        filename = "__base__/sound/fight/large-explosion-2.ogg",
-        volume = 0
-      }
-    }
-  },
-  created_effect =
+  sound = nil,
+  created_effect = nil,
+  old_created_effect =
   {
     type = "direct",
     action_delivery =

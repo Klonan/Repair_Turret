@@ -1,7 +1,7 @@
 local util = require("util")
 local pathfinding = require("pathfinding")
-local turret_update_interval = 23
-local repair_update_interval = 53
+local turret_update_interval = 31
+local repair_update_interval = 67
 local energy_per_heal = 100000
 local transmission_energy_per_meter = 1000
 
@@ -13,7 +13,8 @@ local script_data =
   repair_queue = {},
   beam_multiple = {},
   beam_efficiency = {},
-  free_pack_migration = true
+  free_pack_migration = true,
+  pathfinder_cache = {}
 }
 
 local turret_name = require("shared").entities.repair_turret
@@ -22,6 +23,12 @@ local repair_range = require("shared").repair_range
 local on_player_created = function(event)
   local player = game.get_player(event.player_index)
   player.insert("repair-turret")
+end
+
+local clear_cache = function()
+  game.print("Clearing cache")
+  script_data.pathfinder_cache = {}
+  pathfinding.cache = script_data.pathfinder_cache
 end
 
 local add_to_repair_queue = function(entity)
@@ -137,129 +144,102 @@ local on_created_entity = function(event)
   local entity = event.created_entity or event.entity or event.destination
   if not (entity and entity.valid) then return end
 
-  if entity.name ~= turret_name then return end
+  if entity.name == turret_name then
+    add_to_turret_map(entity)
+  end
 
-  --entity.energy = 0
-
-  add_to_turret_map(entity)
-
-  --script_data.turrets[entity.unit_number] = entity
+  if entity.logistic_cell then
+    clear_cache()
+  end
 
 end
 
 local insert = table.insert
 local max = math.max
 local min = math.min
+local abs = math.abs
 local ceil = math.ceil
 
 local juggle = function(number, amount)
   return number + ((math.random() + 0.5) * amount)
 end
+local beam_name = "repair-beam"
+local max_duration = turret_update_interval * 10
 
 local highlight_path = function(source, path)
 
+  local profiler = game.create_profiler()
+
   local current_duration = 8
-  local max_duration = turret_update_interval * 50
 
   local surface = source.surface
   local create_entity = surface.create_entity
   local force = source.force
+  local count = 0
 
   local make_beam = function(source, target, duration)
+    count = count + 1
+    local profiler = game.create_profiler()
     local source_position = source.position
     local target_position = target.position
 
-    local x1, y1 = source_position.x, source_position.y
-    local x2, y2 = target_position.x, target_position.y
+    local x1, y1 = source_position.x, source_position.y - 2.5
+    local x2, y2 = target_position.x, target_position.y - 2.5
 
     local dx = (x1 - x2)
     local dy = (y1 - y2)
 
-    local distance = ((dx * dx) + (dy * dy)) ^ 0.5
+    --local distance = ((dx * dx) + (dy * dy)) ^ 0.5
+    local distance = abs(dx) + abs(dy)
     local time = ceil(distance / 10)
+    --local distance = ((dx * dx) + (dy * dy))
+    --local time = ceil(distance / 100)
 
+    game.print({"", count, " get positions ", profiler})
+    profiler.reset()
 
-    local energy = source.energy - (transmission_energy_per_meter * distance)
-    source.energy = (energy > 0 and energy) or 1
-    if source.type == "logistic-container" then
-      create_entity
-      {
-        name = "repair-beam",
-        --source = source,
-        --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
-        --target = target,
-        source_position = source_position,
-        target_position = {x1, y1 - 2.5},
-        duration = current_duration,
-        position = source_position,
-        force = force
-      }
-      current_duration = min(current_duration + 3, max_duration)
+    local energy = (source.energy - (transmission_energy_per_meter * distance)) + 1
+    source.energy = energy
+
+    game.print({"", count, " set energy ", profiler})
+    profiler.reset()
+
+    if current_duration < max_duration then
+      current_duration = current_duration + time
     end
 
-    current_duration = min(current_duration + time, max_duration)
     create_entity
     {
-      name = "repair-beam",
-      --source = source,
-      --source_offset = source.type == "roboport" and {x = 0, y = -2.5} or nil,
-      --target = target,
-      source_position = {x1, y1 - 2.5},
-      target_position = {x2, y2 - 2.5},
+      name = beam_name,
+      source_position = {x1, y1},
+      target_position = {x2, y2},
       duration = current_duration,
       position = source_position,
       force = force
     }
-
-    for k = 1, 1 do
-      local explosion = create_entity
-      {
-        name = "transmission-explosion",
-        position = {juggle(x2, 0.1), juggle(y2 - 2.5, 0.1)},
-        --target = target,
-        orientation = math.random()
-      }
-
-            rendering.draw_light
-            {
-              sprite = "utility/light_small",
-              surface = surface,
-              target = explosion,
-              target_offset = {0, 0},
-              color = {r = 0.1, g = 1, b = 0.1},
-              --time_to_live = current_duration + 200,
-              scale = 0.5,
-              intensity = 1
-            }
-    end
-    --[[
-      rendering.draw_light
-      {
-        sprite = "utility/light_medium",
-        surface = surface,
-        target = source,
-        color = {r = 0, g = 1, b = 0},
-        time_to_live = current_duration + 200,
-        intensity = 0.2
-      }
-      ]]
+    game.print({"", count, " create entity ", profiler})
     end
 
   local i = 1
   local last_target = source
   while true do
     local cell = path[i]
-    if cell then
-      local source = cell.owner
-      if last_target then
-        make_beam(last_target, source)
-      end
-      last_target = source
-      i = i + 1
-    else
-      break
+    if not cell then break end
+
+    if not cell.valid then
+      clear_cache()
+      return
     end
+
+    local source = cell.owner
+    if last_target then
+      make_beam(last_target, source)
+    end
+    last_target = source
+    i = i + 1
+
   end
+  game.print({"", game.tick, " Jumps: ", count, " ", profiler})
   return current_duration + 3
 end
 
@@ -315,6 +295,7 @@ local get_pickup_entity = function(turret)
 end
 
 local update_turret = function(turret_data)
+  local profiler = game.create_profiler()
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
 
@@ -336,31 +317,43 @@ local update_turret = function(turret_data)
     return true
   end
 
+  --game.print({"", game.tick, " 1 ", turret.unit_number, profiler})
+  --profiler.reset()
+
   local distance = util.distance({turret.position.x, turret.position.y - 2.5}, entity.position)
 
   --how many ticks the projectile should take to hit.
-  local duration = turret_update_interval
+
+
+
+  local duration = turret_update_interval - 1
 
   if pickup_entity ~= turret then
 
     local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
 
+    --game.print({"", " 2 ",  game.tick, turret.unit_number, profiler})
+    --profiler.reset()
+
     if not path then
       add_to_repair_queue(entity)
       return true
     end
-    duration = highlight_path(pickup_entity, path)
+    local path_duration = highlight_path(pickup_entity, path)
+
+    --game.print({"", " 3 ",  game.tick, turret.unit_number, profiler})
+    --profiler.reset()
 
   end
 
   stack.drain_durability(turret_update_interval / stack.prototype.speed)
 
   turret.energy = new_energy
-  duration = duration + juggle(turret_update_interval, 0.2)
+  --duration = duration + juggle(turret_update_interval, 0.2)
 
   local speed = (distance / duration)
 
-  --for k = 1, get_beam_multiple(turret.force) do
+  for k = 1, get_beam_multiple(turret.force) do
     local rocket = turret.surface.create_entity
     {
       name = "repair-bullet",
@@ -369,6 +362,7 @@ local update_turret = function(turret_data)
       target = entity,
       force = turret.force
     }
+    speed = speed / 0.8
     turret.surface.create_entity
     {
       name = "repair-beam",
@@ -383,14 +377,9 @@ local update_turret = function(turret_data)
       force = turret.force
     }
 
-  --end
+  end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
-
-
-  add_to_repair_queue(entity)
-  return true
-
 
 end
 
@@ -425,14 +414,23 @@ end
 
 local on_tick = function(event)
 
+  --local profiler = game.create_profiler()
+
+  local count = 0
+
   local turret_update_mod = event.tick % turret_update_interval
   for k, turret_data in pairs (script_data.active_turrets) do
     if k % turret_update_interval == turret_update_mod then
+      count = count + 1
       if update_turret(turret_data) then
         script_data.active_turrets[k] = nil
       end
     end
   end
+
+
+  --game.print({"", event.tick, "turret update ", count, "  ", profiler})
+  --profiler.reset()
 
   local repair_update_mod = event.tick % repair_update_interval
   for k, repair in pairs (script_data.repair_queue) do
@@ -442,6 +440,9 @@ local on_tick = function(event)
       end
     end
   end
+
+
+  --game.print({"", event.tick, "repair update ", profiler})
 
 end
 
@@ -478,6 +479,16 @@ local on_research_finished = function(event)
 
 end
 
+local on_entity_removed = function(event)
+  local entity = event.entity
+  if not (entity and entity.valid) then return end
+
+  if entity.logistic_cell then
+    clear_cache()
+  end
+
+end
+
 
 local lib = {}
 
@@ -489,14 +500,29 @@ lib.events =
   [defines.events.script_raised_built] = on_created_entity,
   [defines.events.script_raised_revive] = on_created_entity,
   [defines.events.on_entity_cloned] = on_created_entity,
+
   [defines.events.on_tick] = on_tick,
   [defines.events.on_entity_damaged] = on_entity_damaged,
   [defines.events.on_research_finished] = on_research_finished,
 
+  [defines.events.on_entity_died] = on_entity_removed,
+  [defines.events.script_raised_destroy] = on_entity_removed,
+  [defines.events.on_player_mined_entity] = on_entity_removed,
+  [defines.events.on_robot_mined_entity] = on_entity_removed,
+
+  [defines.events.on_surface_cleared] = clear_cache,
+  [defines.events.on_surface_deleted] = clear_cache,
+
 }
+
+lib.on_init = function()
+  global.repair_turret = global.repair_turret or script_data
+  pathfinding.cache = script_data.pathfinder_cache
+end
 
 lib.on_load = function()
   script_data = global.repair_turret or script_data
+  pathfinding.cache = script_data.pathfinder_cache
 end
 
 lib.on_configuration_changed = function()
@@ -517,6 +543,11 @@ lib.on_configuration_changed = function()
         end
       end
     end
+  end
+
+  if not script_data.pathfinder_cache then
+    script_data.pathfinder_cache = {}
+    pathfinding.cache = script_data.pathfinder_cache
   end
 
 end

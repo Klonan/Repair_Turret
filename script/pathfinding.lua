@@ -1,7 +1,10 @@
+
 --Minimizes number of hops through the network.
 
 local max = math.huge
 local insert = table.insert
+
+local cache
 
 local lowest_f_score = function(set, f_score)
   local lowest = max
@@ -87,19 +90,34 @@ local get_path = function(start, goal)
   return nil -- no valid path
 end
 
-local get_cell_path = function(source, destination_cell)
+local lib = {}
+
+lib.cache = {}
+
+lib.get_cell_path = function(source, destination_cell)
 
   local origin_cell = destination_cell.logistic_network.find_cell_closest_to(source.position)
   if not destination_cell and origin_cell then return end
 
+  local origin_cache = lib.cache[source.unit_number]
+  if not origin_cache then
+    origin_cache = {}
+    lib.cache[source.unit_number] = origin_cache
+  end
+
+  local cached_path = origin_cache[destination_cell.owner.unit_number]
+  if cached_path then
+    --game.print("Cache hit!")
+    return cached_path
+  end
+
   local path = get_path(origin_cell, destination_cell)
+
+  origin_cache[destination_cell.owner.unit_number] = path
 
   return path
 
 end
 
-local lib = {}
-
-lib.get_cell_path = get_cell_path
 
 return lib
