@@ -1,9 +1,9 @@
 local util = require("util")
 local pathfinding = require("pathfinding")
 local turret_update_interval = 31
-local repair_update_interval = 67
+local repair_update_interval = 60
 local energy_per_heal = 100000
-local transmission_energy_per_meter = 1000
+local transmission_energy_per_hop = 5000
 
 local script_data =
 {
@@ -26,7 +26,7 @@ local on_player_created = function(event)
 end
 
 local clear_cache = function()
-  game.print("Clearing cache")
+  --game.print("Clearing cache")
   script_data.pathfinder_cache = {}
   pathfinding.cache = script_data.pathfinder_cache
 end
@@ -164,61 +164,54 @@ local juggle = function(number, amount)
   return number + ((math.random() + 0.5) * amount)
 end
 local beam_name = "repair-beam"
-local max_duration = turret_update_interval * 10
+local max_duration = turret_update_interval * 8
 
 local highlight_path = function(source, path)
 
-  local profiler = game.create_profiler()
+  --local profiler = game.create_profiler()
 
-  local current_duration = 8
+  local current_duration = turret_update_interval
 
   local surface = source.surface
   local create_entity = surface.create_entity
   local force = source.force
   local count = 0
 
-  local make_beam = function(source, target, duration)
-    count = count + 1
-    local profiler = game.create_profiler()
+  local make_beam = function(source, target)
+    --count = count + 1
+    --local profiler = game.create_profiler()
     local source_position = source.position
     local target_position = target.position
 
     local x1, y1 = source_position.x, source_position.y - 2.5
     local x2, y2 = target_position.x, target_position.y - 2.5
 
-    local dx = (x1 - x2)
-    local dy = (y1 - y2)
+    --game.print({"", count, " get positions ", profiler})
+    --profiler.reset()
 
-    --local distance = ((dx * dx) + (dy * dy)) ^ 0.5
-    local distance = abs(dx) + abs(dy)
-    local time = ceil(distance / 10)
-    --local distance = ((dx * dx) + (dy * dy))
-    --local time = ceil(distance / 100)
+    source.energy = (source.energy - transmission_energy_per_hop) + 1
 
-    game.print({"", count, " get positions ", profiler})
-    profiler.reset()
+    --game.print({"", count, " set energy ", profiler})
+    --profiler.reset()
 
-    local energy = (source.energy - (transmission_energy_per_meter * distance)) + 1
-    source.energy = energy
-
-    game.print({"", count, " set energy ", profiler})
-    profiler.reset()
-
-    if current_duration < max_duration then
-      current_duration = current_duration + time
-    end
-
-    create_entity
+    local position = {x1, y1}
+    local beam = create_entity
     {
       name = beam_name,
-      source_position = {x1, y1},
-      target_position = {x2, y2},
+      source_position = position,
+      target_position = position,
       duration = current_duration,
-      position = source_position,
-      force = force
+      position = position,
+      force = force,
     }
-    game.print({"", count, " create entity ", profiler})
+    beam.set_beam_target({x2, y2})
+
+    --game.print({"", count, " create entity ", profiler})
+
+    if current_duration < max_duration then
+      current_duration = current_duration + 3
     end
+  end
 
   local i = 1
   local last_target = source
@@ -226,7 +219,7 @@ local highlight_path = function(source, path)
     local cell = path[i]
     if not cell then break end
 
-    if not cell.valid then
+    if not (cell.valid and cell.transmitting) then
       clear_cache()
       return
     end
@@ -239,8 +232,7 @@ local highlight_path = function(source, path)
     i = i + 1
 
   end
-  game.print({"", game.tick, " Jumps: ", count, " ", profiler})
-  return current_duration + 3
+
 end
 
 local repair_items
@@ -353,7 +345,10 @@ local update_turret = function(turret_data)
 
   local speed = (distance / duration)
 
+  local health_needed = entity.prototype.max_health - entity.health
+
   for k = 1, get_beam_multiple(turret.force) do
+    health_needed = health_needed - 30
     local rocket = turret.surface.create_entity
     {
       name = "repair-bullet",
@@ -377,6 +372,10 @@ local update_turret = function(turret_data)
       force = turret.force
     }
 
+  end
+
+  if health_needed <= 0 then
+    return true
   end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}

@@ -127,26 +127,12 @@ beam.ground_light_animations = laser_beam.ground_light_animations
 for k, v in pairs (beam.ground_light_animations) do
   v.repeat_count = 16
 end
-util.recursive_hack_tint(beam, {g = 1, r = 0.2, b = 0.2})
+util.recursive_hack_tint(beam, {g = 1, r = 0.1, b = 0.1})
 beam.damage_interval = 1000
 beam.name = "repair-beam"
 beam.localised_name = "repair-beam"
 beam.action_triggered_automatically = false
-beam.action =
-{
-  type = "direct",
-  action_delivery =
-  {
-    type = "instant",
-    target_effects =
-    {
-      {
-        type = "damage",
-        damage = { amount = -1, type = util.damage_type("repair")}
-      }
-    }
-  }
-}
+beam.action = nil
 
 local technology =
 {
@@ -196,7 +182,7 @@ local projectile = util.copy(data.raw.projectile["rocket"])
 projectile.name = "repair-bullet"
 projectile.localised_name = "Repair bullet"
 projectile.smoke = nil
-projectile.acceleration = 0
+projectile.acceleration = 0.02
 projectile.height = 0
 projectile.shadow = nil
 projectile.action =
@@ -227,6 +213,26 @@ projectile.animation =
   repeat_count = 5,
   shift = {0, 0}
 }
+
+projectile.animation = {}
+
+for scale = 1.4, 1.6, 0.05 do
+  for speed = 0.2, 0.4, 0.05 do
+    table.insert(projectile.animation,
+    {
+      filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+      priority = "high",
+      width = 37,
+      height = 35,
+      frame_count = 16,
+      scale = scale,
+      animation_speed = speed,
+      repeat_count = 5,
+      shift = {0, 0}
+    }
+  )
+  end
+end
 
 projectile.light =
 {

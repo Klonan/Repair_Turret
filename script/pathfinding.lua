@@ -107,7 +107,6 @@ lib.get_cell_path = function(source, destination_cell)
 
   local cached_path = origin_cache[destination_cell.owner.unit_number]
   if cached_path then
-    --game.print("Cache hit!")
     return cached_path
   end
 
