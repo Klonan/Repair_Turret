@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.2
+Date: 2019-12-14
+  Changes:
+    - Added a 'Hide paths' mod setting, which will not highlight the path the repair pack takes, and will increase UPS.
+    - Removed the 'energy per hop' mechanic. It was pretty insignificant and hurt UPS.
+    - Made the healing blobs movement speed more consistent.
+    - Some other minor performance improvements.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2019-10-16
   Changes:

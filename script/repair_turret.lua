@@ -3,7 +3,7 @@ local pathfinding = require("pathfinding")
 local turret_update_interval = 31
 local repair_update_interval = 60
 local energy_per_heal = 100000
-local transmission_energy_per_hop = 5000
+--local transmission_energy_per_hop = 5000
 
 local script_data =
 {
@@ -13,8 +13,8 @@ local script_data =
   repair_queue = {},
   beam_multiple = {},
   beam_efficiency = {},
-  free_pack_migration = true,
-  pathfinder_cache = {}
+  pathfinder_cache = {},
+  migrate_to_buckets = {}
 }
 
 local turret_name = require("shared").entities.repair_turret
@@ -38,8 +38,15 @@ local add_to_repair_queue = function(entity)
   local unit_number = entity.unit_number
   if not unit_number then return end
 
-  if script_data.repair_queue[unit_number] then return end
-  script_data.repair_queue[unit_number] = entity
+  local bucket_index = unit_number % repair_update_interval
+  local bucket = script_data.repair_queue[bucket_index]
+  if not bucket then
+    bucket = {}
+    script_data.repair_queue[bucket_index] = bucket
+  end
+
+  if bucket[unit_number] then return end
+  bucket[unit_number] = entity
 
 end
 
@@ -189,7 +196,7 @@ local highlight_path = function(source, path)
     --game.print({"", count, " get positions ", profiler})
     --profiler.reset()
 
-    source.energy = (source.energy - transmission_energy_per_hop) + 1
+    --source.energy = (source.energy - transmission_energy_per_hop) + 1
 
     --game.print({"", count, " set energy ", profiler})
     --profiler.reset()
@@ -279,7 +286,6 @@ local get_pickup_entity = function(turret)
     stack = owner.get_output_inventory().find_item_stack(repair_item)
   end
 
-
   if not (stack and stack.valid and stack.valid_for_read) then return end
 
   return owner, stack
@@ -287,7 +293,7 @@ local get_pickup_entity = function(turret)
 end
 
 local update_turret = function(turret_data)
-  local profiler = game.create_profiler()
+  --local profiler = game.create_profiler()
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
 
@@ -296,8 +302,10 @@ local update_turret = function(turret_data)
 
   if entity.get_health_ratio() == 1 then return true end
 
+  local force = turret.force
+
   local turret_energy = turret.energy
-  new_energy = turret_energy - get_needed_energy(turret.force)
+  new_energy = turret_energy - get_needed_energy(force)
   if new_energy < 0 then
     return
   end
@@ -311,31 +319,33 @@ local update_turret = function(turret_data)
 
   --game.print({"", game.tick, " 1 ", turret.unit_number, profiler})
   --profiler.reset()
+  local position = turret.position
+  local source_position = {position.x, position.y - 2.5}
 
-  local distance = util.distance({turret.position.x, turret.position.y - 2.5}, entity.position)
+  local distance = util.distance(source_position, entity.position)
+  if distance > repair_range then return true end
 
   --how many ticks the projectile should take to hit.
+  local duration = distance * 3
 
+  if not settings.global.hide_repair_paths.value then
+    if pickup_entity ~= turret then
 
+      local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
 
-  local duration = turret_update_interval - 1
+      --game.print({"", " 2 ",  game.tick, turret.unit_number, profiler})
+      --profiler.reset()
 
-  if pickup_entity ~= turret then
+      if not path then
+        add_to_repair_queue(entity)
+        return true
+      end
+      local path_duration = highlight_path(pickup_entity, path)
 
-    local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
+      --game.print({"", " 3 ",  game.tick, turret.unit_number, profiler})
+      --profiler.reset()
 
-    --game.print({"", " 2 ",  game.tick, turret.unit_number, profiler})
-    --profiler.reset()
-
-    if not path then
-      add_to_repair_queue(entity)
-      return true
     end
-    local path_duration = highlight_path(pickup_entity, path)
-
-    --game.print({"", " 3 ",  game.tick, turret.unit_number, profiler})
-    --profiler.reset()
-
   end
 
   stack.drain_durability(turret_update_interval / stack.prototype.speed)
@@ -347,35 +357,35 @@ local update_turret = function(turret_data)
 
   local health_needed = entity.prototype.max_health - entity.health
 
+  local surface = turret.surface
+  local create_entity = surface.create_entity
+
   for k = 1, get_beam_multiple(turret.force) do
     health_needed = health_needed - 30
-    local rocket = turret.surface.create_entity
+    local rocket = create_entity
     {
       name = "repair-bullet",
       speed = speed,
-      position = {turret.position.x, turret.position.y - 2.5},
+      position = source_position,
       target = entity,
-      force = turret.force
+      force = force,
+      max_range = repair_range
     }
     speed = speed / 0.8
-    turret.surface.create_entity
+    create_entity
     {
       name = "repair-beam",
       --source_position = {turret.position.x, turret.position.y - 2.5},
-      target_position = {turret.position.x, turret.position.y - 2.5},
+      target_position = source_position,
       source = rocket,
-      source_offset = {0, 0},
+      --source_offset = {0, 0},
       --target = turret,
       --target = entity,
       --duration = turret_update_interval - 1,
-      position = turret.position,
-      force = turret.force
+      position = position,
+      force = force
     }
-
-  end
-
-  if health_needed <= 0 then
-    return true
+    if health_needed <= 0 then return true end
   end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
@@ -390,7 +400,6 @@ local activate_turret = function(turret, entity)
   script_data.active_turrets[turret.unit_number] =
   {
     turret = turret,
-    point = turret.get_logistic_point(),
     entity = entity
   }
 end
@@ -407,20 +416,18 @@ local check_repair = function(entity)
   activate_turret(turret, entity)
   return true
 
-
-
 end
 
 local on_tick = function(event)
 
   --local profiler = game.create_profiler()
 
-  local count = 0
+  --local count = 0
 
   local turret_update_mod = event.tick % turret_update_interval
   for k, turret_data in pairs (script_data.active_turrets) do
     if k % turret_update_interval == turret_update_mod then
-      count = count + 1
+      --count = count + 1
       if update_turret(turret_data) then
         script_data.active_turrets[k] = nil
       end
@@ -432,10 +439,11 @@ local on_tick = function(event)
   --profiler.reset()
 
   local repair_update_mod = event.tick % repair_update_interval
-  for k, repair in pairs (script_data.repair_queue) do
-    if k % repair_update_interval == repair_update_mod then
+  local bucket = script_data.repair_queue[repair_update_mod]
+  if bucket then
+    for k, repair in pairs (bucket) do
       if check_repair(repair) then
-        script_data.repair_queue[k] = nil
+        bucket[k] = nil
       end
     end
   end
@@ -526,27 +534,18 @@ end
 
 lib.on_configuration_changed = function()
 
-  if not script_data.free_pack_migration then
-    script_data.free_pack_migration = true
-    if game.item_prototypes["repair-pack"] then
-      game.print("Klonan: Hello, Repair turrets now require repair packs in the logistic network to repair. As a 'sorry', I have given all repair turrets 5 repair packs for free.")
-      for x, y in pairs (script_data.turret_map) do
-        for y, turrets in pairs (y) do
-          for unit_number, turret in pairs (turrets) do
-            if turret.valid then
-              turret.insert{name = "repair-pack", count = 5}
-            else
-              turrets[unit_number] = nil
-            end
-          end
-        end
-      end
-    end
-  end
-
   if not script_data.pathfinder_cache then
     script_data.pathfinder_cache = {}
     pathfinding.cache = script_data.pathfinder_cache
+  end
+
+  if not script_data.migrate_to_buckets then
+    script_data.migrate_to_buckets = true
+    local entities = script_data.repair_queue
+    script_data.repair_queue = {}
+    for k, entity in pairs (entities) do
+      add_to_repair_queue(entity)
+    end
   end
 
 end
