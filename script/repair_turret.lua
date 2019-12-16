@@ -3,6 +3,8 @@ local pathfinding = require("pathfinding")
 local turret_update_interval = 31
 local repair_update_interval = 60
 local energy_per_heal = 100000
+local turret_name = require("shared").entities.repair_turret
+local repair_range = require("shared").repair_range
 --local transmission_energy_per_hop = 5000
 
 local script_data =
@@ -16,9 +18,6 @@ local script_data =
   pathfinder_cache = {},
   migrate_to_buckets = {}
 }
-
-local turret_name = require("shared").entities.repair_turret
-local repair_range = require("shared").repair_range
 
 local on_player_created = function(event)
   local player = game.get_player(event.player_index)
@@ -77,7 +76,8 @@ end
 local get_turrets_in_map = function(x, y)
   --game.print("HI"..x..y)
   local map = script_data.turret_map
-  local turrets = map[x] and map[x][y]
+  local map_x = map[x]
+  local turrets = map_x and map_x[y]
   --game.print(serpent.line(turrets))
   return turrets
 end
@@ -320,48 +320,35 @@ local update_turret = function(turret_data)
   --game.print({"", game.tick, " 1 ", turret.unit_number, profiler})
   --profiler.reset()
   local position = turret.position
-  local source_position = {position.x, position.y - 2.5}
+  local target_position = entity.position
 
-  local distance = util.distance(source_position, entity.position)
-  if distance > repair_range then return true end
-
-  --how many ticks the projectile should take to hit.
-  local duration = distance * 3
-
+  if abs(target_position.x - position.x) > repair_range or abs(target_position.y - position.y) > repair_range then
+    add_to_repair_queue(entity)
+    return true
+  end
+    
   if not settings.global.hide_repair_paths.value then
     if pickup_entity ~= turret then
-
       local path = pathfinding.get_cell_path(pickup_entity, turret.logistic_cell)
-
-      --game.print({"", " 2 ",  game.tick, turret.unit_number, profiler})
-      --profiler.reset()
-
-      if not path then
-        add_to_repair_queue(entity)
-        return true
+            
+      if path then
+        highlight_path(pickup_entity, path)
       end
-      local path_duration = highlight_path(pickup_entity, path)
-
-      --game.print({"", " 3 ",  game.tick, turret.unit_number, profiler})
-      --profiler.reset()
-
+      
     end
   end
-
+  
   stack.drain_durability(turret_update_interval / stack.prototype.speed)
-
+  
   turret.energy = new_energy
-  --duration = duration + juggle(turret_update_interval, 0.2)
-
-  local speed = (distance / duration)
-
-  local health_needed = entity.prototype.max_health - entity.health
-
+  
+  local speed = 1 / 2
+  
+  local source_position = {position.x, position.y - 2.5}
   local surface = turret.surface
   local create_entity = surface.create_entity
-
+  
   for k = 1, get_beam_multiple(turret.force) do
-    health_needed = health_needed - 30
     local rocket = create_entity
     {
       name = "repair-bullet",
@@ -369,7 +356,7 @@ local update_turret = function(turret_data)
       position = source_position,
       target = entity,
       force = force,
-      max_range = repair_range
+      max_range = repair_range * 2
     }
     speed = speed / 0.8
     create_entity
@@ -385,7 +372,6 @@ local update_turret = function(turret_data)
       position = position,
       force = force
     }
-    --if health_needed <= 0 then return true end
   end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
