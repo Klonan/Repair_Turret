@@ -385,7 +385,7 @@ local update_turret = function(turret_data)
       position = position,
       force = force
     }
-    if health_needed <= 0 then return true end
+    --if health_needed <= 0 then return true end
   end
 
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
