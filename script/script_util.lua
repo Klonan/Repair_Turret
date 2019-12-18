@@ -73,4 +73,9 @@ util.angle = function(position_1, position_2)
   return math.atan2(d_y, d_x)
 end
 
+local abs = math.abs
+util.rect_distance = function(position_1, position_2)
+  return abs(closest_position.x - position.x) + abs(closest_position.y - position.y)
+end
+
 return util
