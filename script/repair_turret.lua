@@ -531,7 +531,9 @@ lib.on_configuration_changed = function()
     local entities = script_data.repair_queue
     script_data.repair_queue = {}
     for k, entity in pairs (entities) do
-      add_to_repair_queue(entity)
+      if entity.valid then
+        add_to_repair_queue(entity)
+      end
     end
   end
 
