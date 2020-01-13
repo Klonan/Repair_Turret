@@ -1,7 +1,7 @@
 local util = require("util")
 local pathfinding = require("pathfinding")
 local turret_update_interval = 31
-local repair_update_interval = 60
+local repair_update_interval = 179
 local energy_per_heal = 100000
 local turret_name = require("shared").entities.repair_turret
 local repair_range = require("shared").repair_range
@@ -16,8 +16,22 @@ local script_data =
   beam_multiple = {},
   beam_efficiency = {},
   pathfinder_cache = {},
-  migrate_to_buckets = {}
+  migrate_to_buckets = {},
+  repair_update_interval = repair_update_interval
 }
+
+local repair_items
+local get_repair_items = function()
+  if repair_items then return repair_items end
+  --Deliberately not 'local'
+  repair_items = {}
+  for name, item in pairs (game.item_prototypes) do
+    if item.type == "repair-tool" then
+      repair_items[name] = true
+    end
+  end
+  return repair_items
+end
 
 local on_player_created = function(event)
   local player = game.get_player(event.player_index)
@@ -92,6 +106,13 @@ local get_needed_energy = function(force)
   return base * modifier
 end
 
+local has_repair_item = function(network)
+  local get_item_count = network.get_item_count
+  for name, item in pairs (get_repair_items()) do
+    if get_item_count(name) > 0 then return true end
+  end
+end
+
 local abs = math.abs
 local find_turret_for_repair = function(entity, radius)
   local radius = radius or 1
@@ -102,6 +123,16 @@ local find_turret_for_repair = function(entity, radius)
   --if not in any construction range, short-circuit...
   local networks = surface.find_logistic_networks_by_construction_area(position, force)
   if not next(networks) then return end
+
+  local any = false
+  for k, network in pairs (networks) do
+    if has_repair_item(network) then
+      any = true
+      break
+    end
+  end
+
+  if not any then return end
 
   local nearby = {}
   local active_turrets = script_data.active_turrets
@@ -142,6 +173,7 @@ local find_turret_for_repair = function(entity, radius)
   local closest_position = closest.position
   if abs(closest_position.x - position.x) > repair_range then return end
   if abs(closest_position.y - position.y) > repair_range then return end
+  if not has_repair_item(closest.logistic_network) then return end
 
   return closest
 
@@ -240,19 +272,6 @@ local highlight_path = function(source, path)
 
   end
 
-end
-
-local repair_items
-local get_repair_items = function()
-  if repair_items then return repair_items end
-  --Deliberately not 'local'
-  repair_items = {}
-  for name, item in pairs (game.item_prototypes) do
-    if item.type == "repair-tool" then
-      repair_items[name] = item
-    end
-  end
-  return repair_items
 end
 
 local get_pickup_entity = function(turret)
@@ -483,6 +502,24 @@ local on_entity_removed = function(event)
 
 end
 
+local check_rebucketing = function()
+  if script_data.repair_update_interval == repair_update_interval then return end
+  script_data.repair_update_interval = repair_update_interval
+  local buckets = script_data.repair_queue
+  script_data.repair_queue = {}
+  local profiler = game.create_profiler()
+  local count = 1
+  for k, bucket in pairs (buckets) do
+    for k, entity in pairs (bucket) do
+      if entity and entity.valid then
+        add_to_repair_queue(entity)
+        count = count + 1
+      end
+    end
+  end
+  game.print({"", "Rebucketed entities ", count, " = ", profiler})
+end
+
 
 local lib = {}
 
@@ -536,6 +573,8 @@ lib.on_configuration_changed = function()
       end
     end
   end
+
+  check_rebucketing()
 
 end
 
