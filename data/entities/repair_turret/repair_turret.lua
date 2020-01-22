@@ -83,7 +83,7 @@ turret.logistics_connection_distance = repair_range
 turret.construction_radius = repair_range
 turret.robot_slots_count = 0
 turret.material_slots_count = 1
-turret.charging_energy = "1MW"
+turret.charging_energy = "10MW"
 turret.energy_usage = "2kW"
 turret.energy_source =
 {

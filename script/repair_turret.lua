@@ -1,24 +1,18 @@
 local util = require("util")
 local pathfinding = require("pathfinding")
 local turret_update_interval = 31
-local repair_update_interval = 179
 local energy_per_heal = 100000
 local turret_name = require("shared").entities.repair_turret
 local repair_range = require("shared").repair_range
---local transmission_energy_per_hop = 5000
 
 local script_data =
 {
-  turrets = {},
   turret_map = {},
   active_turrets = {},
-  repair_queue = {},
+  repair_check_queue = {},
   beam_multiple = {},
   beam_efficiency = {},
   pathfinder_cache = {},
-  migrate_to_buckets = {},
-  repair_update_interval = repair_update_interval,
-  repair_check_queue = {}
 }
 
 local repair_items
@@ -45,7 +39,7 @@ local clear_cache = function()
   pathfinding.cache = script_data.pathfinder_cache
 end
 
-local add_to_repair_queue = function(entity)
+local add_to_repair_check_queue = function(entity)
 
   if entity.has_flag("not-repairable") then return end
 
@@ -150,12 +144,23 @@ local find_nearby_turrets = function(entity)
   return turrets
 end
 
+local add_nearby_damaged_entities_to_repair_check_queue = function(entity)
+  local position = entity.position
+  local area = {{position.x - repair_range, position.y - repair_range}, {position.x + repair_range, position.y + repair_range}}
+  for k, entity in pairs (entity.surface.find_entities_filtered{area = area}) do
+    if entity.unit_number and (entity.get_health_ratio() or 1) < 1 then
+      add_to_repair_check_queue(entity)
+    end
+  end
+end
+
 local on_created_entity = function(event)
   local entity = event.created_entity or event.entity or event.destination
   if not (entity and entity.valid) then return end
 
   if entity.name == turret_name then
     add_to_turret_map(entity)
+    add_nearby_damaged_entities_to_repair_check_queue(entity)
   end
 
   if entity.logistic_cell then
@@ -423,7 +428,7 @@ local check_repair = function(unit_number, entity)
 end
 
 local repair_check_count = 5
-local check_repair_queue = function()
+local check_repair_check_queue = function()
   local repair_check_queue = script_data.repair_check_queue
   for k = 1, repair_check_count do
 
@@ -438,7 +443,7 @@ end
 
 local on_tick = function(event)
 
-  check_repair_queue()
+  check_repair_check_queue()
 
   --local profiler = game.create_profiler()
 
@@ -463,7 +468,7 @@ local on_entity_damaged = function(event)
     return
   end
 
-  add_to_repair_queue(entity)
+  add_to_repair_check_queue(entity)
 end
 
 local on_research_finished = function(event)
@@ -498,25 +503,6 @@ local on_entity_removed = function(event)
   end
 
 end
-
-local check_rebucketing = function()
-  if script_data.repair_update_interval == repair_update_interval then return end
-  script_data.repair_update_interval = repair_update_interval
-  local buckets = script_data.repair_queue
-  script_data.repair_queue = {}
-  local profiler = game.create_profiler()
-  local count = 1
-  for k, bucket in pairs (buckets) do
-    for k, entity in pairs (bucket) do
-      if entity and entity.valid then
-        add_to_repair_queue(entity)
-        count = count + 1
-      end
-    end
-  end
-  game.print({"", "Rebucketed entities ", count, " = ", profiler})
-end
-
 
 local lib = {}
 
@@ -560,9 +546,28 @@ lib.on_configuration_changed = function()
     pathfinding.cache = script_data.pathfinder_cache
   end
 
-  check_rebucketing()
+  if not script_data.repair_check_queue then
+    local profiler = game.create_profiler()
 
-  script_data.repair_check_queue = script_data.repair_check_queue or {}
+    script_data.repair_check_queue = {}
+    script_data.active_turrets = {}
+
+    for x, array in pairs (script_data.turret_map) do
+      for y, turrets in pairs (array) do
+        for k, turret in pairs (turrets) do
+          if not turret.valid then
+            turrets[k] = nil
+          else
+            add_nearby_damaged_entities_to_repair_check_queue(turret)
+          end
+        end
+      end
+    end
+
+    game.print{"", "Repair turret - Rescanned map for repair targets. ", profiler}
+
+  end
+
 
 end
 
