@@ -1,3 +1,9 @@
+Version: 0.3.0
+Date: 2019-01-24
+  Changes:
+    - 0.18 update.
+    - Rewrote turret update logic. They will now heal the entity with the lowest health nearby, and heal more consistently.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.6
 Date: 2019-01-13
   Changes:
