@@ -1,6 +1,7 @@
 local util = require("util")
 local pathfinding = require("pathfinding")
 local turret_update_interval = 31
+local moving_entity_check_interval = 301
 local energy_per_heal = 100000
 local turret_name = require("shared").entities.repair_turret
 local repair_range = require("shared").repair_range
@@ -13,7 +14,26 @@ local script_data =
   beam_multiple = {},
   beam_efficiency = {},
   pathfinder_cache = {},
+  moving_entity_buckets = {}
 }
+
+local moving_entities =
+{
+  ["car"] = true,
+  ["unit"] = true,
+  ["character"] = true,
+  ["combat-robot"] = true,
+  ["locomotive"] = true,
+  ["cargo-wagon"] = true,
+  ["fluid-wagon"] = true,
+  ["artillery-wagon"] = true,
+  ["construction-robot"] = true,
+  ["logistic-robot"] = true
+}
+
+local can_move = function(entity)
+  return moving_entities[entity.type]
+end
 
 local repair_items
 local get_repair_items = function()
@@ -39,9 +59,29 @@ local clear_cache = function()
   pathfinding.cache = script_data.pathfinder_cache
 end
 
+local add_to_moving_entity_check = function(entity)
+
+  local unit_number = entity.unit_number
+  if not unit_number then return end
+
+  local bucket_index = unit_number % moving_entity_check_interval
+
+  local bucket = script_data.moving_entity_buckets[bucket_index]
+  if not bucket then
+    bucket = {}
+    script_data.moving_entity_buckets[bucket_index] = bucket
+  end
+
+  bucket[unit_number] = entity
+
+end
+
 local add_to_repair_check_queue = function(entity)
 
-  if entity.has_flag("not-repairable") then return end
+  if can_move(entity) then
+    add_to_moving_entity_check(entity)
+    return
+  end
 
   local unit_number = entity.unit_number
   if not unit_number then return end
@@ -167,6 +207,10 @@ local on_created_entity = function(event)
     clear_cache()
   end
 
+  if entity.get_health_ratio() < 1 then
+    add_to_repair_check_queue(entity)
+  end
+
 end
 
 local insert = table.insert
@@ -287,7 +331,11 @@ local get_pickup_entity = function(turret)
 
 end
 
-local get_lowest_health = function(entities)
+local is_in_range = function(turret_position, position)
+  return abs(position.x - turret_position.x) <= repair_range and abs(position.y - turret_position.y) <= repair_range
+end
+
+local get_target = function(entities, position)
   local lowest
   local lowest_health = math.huge
 
@@ -296,7 +344,7 @@ local get_lowest_health = function(entities)
       entities[k] = nil
     else
       local health = entity.health - entity.get_damage_to_be_taken()
-      if health >= entity.prototype.max_health then
+      if health >= entity.prototype.max_health or (can_move(entity) and not is_in_range(position, entity.position)) then
         entities[k] = nil
       elseif (health < lowest_health) then
         lowest = entity
@@ -313,10 +361,9 @@ local update_turret = function(turret_data)
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
 
-
   --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "!"}
 
-  local entity = get_lowest_health(turret_data.targets)
+  local entity = get_target(turret_data.targets, turret.position)
 
   if not entity then return true end
 
@@ -403,6 +450,7 @@ end
 
 local check_repair = function(unit_number, entity)
   if not (entity and entity.valid) then return true end
+  if entity.has_flag("not-repairable") then return true end
   if entity.get_health_ratio() == 1 then return true end
 
   --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
@@ -429,6 +477,7 @@ end
 
 local repair_check_count = 5
 local check_repair_check_queue = function()
+
   local repair_check_queue = script_data.repair_check_queue
   for k = 1, repair_check_count do
 
@@ -439,25 +488,51 @@ local check_repair_check_queue = function()
 
     check_repair(unit_number, entity)
   end
+
+end
+
+local check_moving_entity_repair = function(event)
+
+  local moving_entity_check_index = event.tick % moving_entity_check_interval
+  local moving_entity_bucket = script_data.moving_entity_buckets[moving_entity_check_index]
+
+  if not moving_entity_bucket then return end
+
+  for unit_number, entity in pairs(moving_entity_bucket) do
+    if check_repair(unit_number, entity) then
+      moving_entity_bucket[unit_number] = nil
+    end
+  end
+
+  if not next(moving_entity_bucket) then
+    script_data.moving_entity_buckets[moving_entity_check_index] = nil
+  end
+
+end
+
+local check_turret_update = function(event)
+
+  local active_turrets = script_data.active_turrets
+  if not next(active_turrets) then return end
+
+  local turret_update_mod = event.tick % turret_update_interval
+  for k, turret_data in pairs (active_turrets) do
+    if k % turret_update_interval == turret_update_mod then
+      if update_turret(turret_data) then
+        active_turrets[k] = nil
+      end
+    end
+  end
+
 end
 
 local on_tick = function(event)
 
   check_repair_check_queue()
 
-  --local profiler = game.create_profiler()
+  check_moving_entity_repair(event)
 
-  --local count = 0
-
-  local turret_update_mod = event.tick % turret_update_interval
-  for k, turret_data in pairs (script_data.active_turrets) do
-    if k % turret_update_interval == turret_update_mod then
-      --count = count + 1
-      if update_turret(turret_data) then
-        script_data.active_turrets[k] = nil
-      end
-    end
-  end
+  check_turret_update(event)
 
 end
 
@@ -469,6 +544,7 @@ local on_entity_damaged = function(event)
   end
 
   add_to_repair_check_queue(entity)
+
 end
 
 local on_research_finished = function(event)
@@ -565,6 +641,8 @@ lib.on_configuration_changed = function()
     end
 
     game.print{"", "Repair turret - Rescanned map for repair targets. ", profiler}
+
+    script_data.moving_entity_buckets = script_data.moving_entity_buckets or {}
 
   end
 
