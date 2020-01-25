@@ -207,7 +207,7 @@ local on_created_entity = function(event)
     clear_cache()
   end
 
-  if entity.get_health_ratio() < 1 then
+  if (entity.get_health_ratio() or 1) < 1 then
     add_to_repair_check_queue(entity)
   end
 
@@ -451,7 +451,7 @@ end
 local check_repair = function(unit_number, entity)
   if not (entity and entity.valid) then return true end
   if entity.has_flag("not-repairable") then return true end
-  if entity.get_health_ratio() == 1 then return true end
+  if (entity.get_health_ratio() or 1) == 1 then return true end
 
   --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
 
