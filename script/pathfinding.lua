@@ -31,32 +31,44 @@ unwind_path = function(flat_path, map, current_cell)
   end
 end
 
-local get_path = function(start, goal)
+local flat = true
+
+local get_path = function(start, goal, origin_position)
+  local steps = 0
   --print("Starting path find")
   local closed_set = {}
   local open_set = {}
   local came_from = {}
 
-  local g_score = {}
-  local f_score = {}
+  local origin_x, origin_y = origin_position.x, origin_position.y
+  local heuristic = function(cell)
+    local cell_position = cell.owner.position
+    local dx, dy = cell_position.x - origin_x, cell_position.y - origin_y
+    return (dx * dx) + (dy * dy)
+  end
+
   local start_index = start.owner.unit_number
   local goal_index = goal.owner.unit_number
   open_set[start_index] = start
+
+  local g_score = {}
   g_score[start_index] = 0
-  f_score[start_index] = 1
+
+  local f_score = {}
+  f_score[start_index] = heuristic(start)
 
   local insert = table.insert
   local dist = dist
   local lowest_f_score = lowest_f_score
   while next(open_set) do
-
+    steps = steps + 1
     local current = lowest_f_score(open_set, f_score)
 
     if current == goal then
       local path = unwind_path({}, came_from, goal)
       insert(path, goal)
       --print("A* path find complete")
-      return path
+      return path, steps
     end
 
     local current_index = current.owner.unit_number
@@ -76,10 +88,10 @@ local get_path = function(start, goal)
           f_score[neighbour_index] = max
         end
 
-        if new_node or tentative_g_score < g_score[neighbour_index] then
+        if new_node or (tentative_g_score < g_score[neighbour_index]) then
           came_from[neighbour_index] = current
           g_score[neighbour_index] = tentative_g_score
-          f_score[neighbour_index] = g_score[neighbour_index] + 1
+          f_score[neighbour_index] = g_score[neighbour_index] + heuristic(neighbour)
         end
 
       end
@@ -105,12 +117,20 @@ lib.get_cell_path = function(source, destination_cell)
     lib.cache[source.unit_number] = origin_cache
   end
 
-  local cached_path = origin_cache[destination_cell.owner.unit_number]
+  local owner = destination_cell.owner
+
+  local cached_path = origin_cache[owner.unit_number]
   if cached_path then
     return cached_path
   end
 
-  local path = get_path(origin_cell, destination_cell)
+  --local profiler = game.create_profiler()
+
+  local path, steps = get_path(origin_cell, destination_cell, owner.position)
+
+  --profiler.stop()
+  --profiler.divide(steps)
+  --game.print({"", "Pathfind in ", steps, profiler})
 
   origin_cache[destination_cell.owner.unit_number] = path
 
