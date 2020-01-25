@@ -34,7 +34,6 @@ end
 local flat = true
 
 local get_path = function(start, goal, origin_position)
-  local steps = 0
   --print("Starting path find")
   local closed_set = {}
   local open_set = {}
@@ -61,14 +60,13 @@ local get_path = function(start, goal, origin_position)
   local dist = dist
   local lowest_f_score = lowest_f_score
   while next(open_set) do
-    steps = steps + 1
     local current = lowest_f_score(open_set, f_score)
 
     if current == goal then
       local path = unwind_path({}, came_from, goal)
       insert(path, goal)
       --print("A* path find complete")
-      return path, steps
+      return path
     end
 
     local current_index = current.owner.unit_number
@@ -124,13 +122,7 @@ lib.get_cell_path = function(source, destination_cell)
     return cached_path
   end
 
-  --local profiler = game.create_profiler()
-
-  local path, steps = get_path(origin_cell, destination_cell, owner.position)
-
-  --profiler.stop()
-  --profiler.divide(steps)
-  --game.print({"", "Pathfind in ", steps, profiler})
+  local path = get_path(origin_cell, destination_cell, owner.position)
 
   origin_cache[destination_cell.owner.unit_number] = path
 
