@@ -642,10 +642,10 @@ lib.on_configuration_changed = function()
 
     game.print{"", "Repair turret - Rescanned map for repair targets. ", profiler}
 
-    script_data.moving_entity_buckets = script_data.moving_entity_buckets or {}
 
   end
 
+  script_data.moving_entity_buckets = script_data.moving_entity_buckets or {}
 
 end
 
