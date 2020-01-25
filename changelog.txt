@@ -1,3 +1,8 @@
+Version: 0.3.1
+Date: 2019-01-25
+  Changes:
+    - Fixed not repairing moving things damaged outside of range, then moving into range.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2019-01-24
   Changes:
