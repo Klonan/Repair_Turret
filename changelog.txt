@@ -1,3 +1,8 @@
+Version: 0.3.4
+Date: 2019-01-26
+  Changes:
+    - Filter damage events to only entities that can be repaired. Helps performance a lot when you have a lot of biters getting roasted.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: 2019-01-25
   Changes:

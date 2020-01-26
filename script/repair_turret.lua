@@ -14,7 +14,8 @@ local script_data =
   beam_multiple = {},
   beam_efficiency = {},
   pathfinder_cache = {},
-  moving_entity_buckets = {}
+  moving_entity_buckets = {},
+  non_repairable_entities = {}
 }
 
 local moving_entities =
@@ -580,6 +581,32 @@ local on_entity_removed = function(event)
 
 end
 
+local set_damaged_event_filter = function()
+  if not script_data.non_repairable_entities then return end
+  local filters = {}
+  for name, bool in pairs (script_data.non_repairable_entities) do
+    local filter =
+    {
+      filter = "name",
+      name = name,
+      invert = true,
+      mode = "and"
+    }
+    table.insert(filters, filter)
+  end
+  script.set_event_filter(defines.events.on_entity_damaged, filters)
+end
+
+local update_non_repairable_entities = function()
+  script_data.non_repairable_entities = {}
+  for name, entity in pairs (game.entity_prototypes) do
+    if entity.has_flag("not-repairable") then
+      script_data.non_repairable_entities[name] = true
+    end
+  end
+  set_damaged_event_filter()
+end
+
 local lib = {}
 
 lib.events =
@@ -613,6 +640,7 @@ end
 lib.on_load = function()
   script_data = global.repair_turret or script_data
   pathfinding.cache = script_data.pathfinder_cache
+  set_damaged_event_filter()
 end
 
 lib.on_configuration_changed = function()
@@ -646,6 +674,8 @@ lib.on_configuration_changed = function()
   end
 
   script_data.moving_entity_buckets = script_data.moving_entity_buckets or {}
+
+  update_non_repairable_entities()
 
 end
 
