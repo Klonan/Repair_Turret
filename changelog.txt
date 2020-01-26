@@ -1,3 +1,8 @@
+Version: 0.3.5
+Date: 2019-01-26
+  Changes:
+    - Fix sometimes filters not being needed... (or something? Don't know, just going to return.)
+---------------------------------------------------------------------------------------------------
 Version: 0.3.4
 Date: 2019-01-26
   Changes:

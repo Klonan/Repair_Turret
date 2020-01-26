@@ -582,7 +582,9 @@ local on_entity_removed = function(event)
 end
 
 local set_damaged_event_filter = function()
+
   if not script_data.non_repairable_entities then return end
+
   local filters = {}
   for name, bool in pairs (script_data.non_repairable_entities) do
     local filter =
@@ -594,6 +596,9 @@ local set_damaged_event_filter = function()
     }
     table.insert(filters, filter)
   end
+
+  if not next(filters) then return end
+
   script.set_event_filter(defines.events.on_entity_damaged, filters)
 end
 
