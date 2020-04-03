@@ -322,6 +322,8 @@ local get_pickup_entity = function(turret)
   local owner = pickup_point.owner
   if owner.type == "roboport" then
     stack = owner.get_inventory(defines.inventory.roboport_material).find_item_stack(repair_item)
+  elseif owner.type == "character" then
+    stack = owner.get_main_inventory().find_item_stack(repair_item)
   else
     stack = owner.get_output_inventory().find_item_stack(repair_item)
   end
@@ -650,6 +652,8 @@ end
 
 lib.on_configuration_changed = function()
 
+  script_data.moving_entity_buckets = script_data.moving_entity_buckets or {}
+
   if not script_data.pathfinder_cache then
     script_data.pathfinder_cache = {}
     pathfinding.cache = script_data.pathfinder_cache
@@ -677,8 +681,6 @@ lib.on_configuration_changed = function()
 
 
   end
-
-  script_data.moving_entity_buckets = script_data.moving_entity_buckets or {}
 
   update_non_repairable_entities()
 

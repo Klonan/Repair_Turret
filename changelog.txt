@@ -1,3 +1,13 @@
+Version: 0.3.8
+Date: 2019-01-30
+  Changes:
+    - Fix error trying to take repair packs from a Character entity.
+---------------------------------------------------------------------------------------------------
+Version: 0.3.7
+Date: 2019-01-30
+  Changes:
+    - Fix migration error.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.6
 Date: 2019-01-30
   Changes:
