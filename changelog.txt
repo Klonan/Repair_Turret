@@ -1,3 +1,9 @@
+Version: 0.4.0
+Date: 2019-05-03
+  Changes:
+    - Added ability for repair turrets to construct ghosts and decostruct entities.
+    - Added technology for enabling repair turrets to construct and deconstruct.
+---------------------------------------------------------------------------------------------------
 Version: 0.3.8
 Date: 2019-01-30
   Changes:
