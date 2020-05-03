@@ -585,6 +585,8 @@ end
 local products_cache = {}
 local get_products = function(entity)
 
+  if entity.name == "item-on-ground" then return {{name = entity.stack.name, amount = entity.stack.count}} end
+
   local products = products_cache[entity.name]
   if products then return products end
 
