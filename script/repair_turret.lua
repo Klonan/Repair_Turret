@@ -658,26 +658,29 @@ local deconstruct_entity = function(turret, entity)
     position = position,
     force = force
   }
-  rendering.draw_sprite
-  {
-    sprite = "utility/entity_info_dark_background",
-    x_scale = 0.4,
-    y_scale = 0.4,
-    target = rocket,
-    surface = surface,
-    forces = {turret.force},
-    only_in_alt_mode = true
-  }
-  rendering.draw_sprite
-  {
-    sprite = "entity/"..name,
-    x_scale = 0.5,
-    y_scale = 0.5,
-    target = rocket,
-    surface = surface,
-    forces = {turret.force},
-    only_in_alt_mode = true
-  }
+  --[[
+
+    rendering.draw_sprite
+    {
+      sprite = "utility/entity_info_dark_background",
+      x_scale = 0.4,
+      y_scale = 0.4,
+      target = rocket,
+      surface = surface,
+      forces = {turret.force},
+      only_in_alt_mode = true
+    }
+    rendering.draw_sprite
+    {
+      sprite = "entity/"..name,
+      x_scale = 0.5,
+      y_scale = 0.5,
+      target = rocket,
+      surface = surface,
+      forces = {turret.force},
+      only_in_alt_mode = true
+    }
+    ]]
 
   for k, remains in pairs(remains) do
     surface.create_entity{name = remains.name, position = position, force = force}
