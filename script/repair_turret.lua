@@ -259,10 +259,9 @@ local ceil = math.ceil
 local juggle = function(number, amount)
   return number + ((math.random() + 0.5) * amount)
 end
-local beam_name = "repair-beam"
 local max_duration = turret_update_interval * 8
 
-local highlight_path = function(source, path)
+local highlight_path = function(source, path, beam_name)
 
   --local profiler = game.create_profiler()
 
@@ -374,13 +373,13 @@ local is_in_range = function(turret_position, position)
   return abs(position.x - turret_position.x) <= repair_range and abs(position.y - turret_position.y) <= repair_range
 end
 
-local make_path = function(target_entity, source_cell)
+local make_path = function(target_entity, source_cell, beam_name)
   if settings.global.hide_repair_paths.value then return end
 
   local path = pathfinding.get_cell_path(target_entity, source_cell)
 
   if path then
-    highlight_path(target_entity, path)
+    highlight_path(target_entity, path, beam_name)
   end
 
 end
@@ -426,7 +425,7 @@ local repair_entity = function(turret_data, turret, entity)
   local target_position = entity.position
 
   if pickup_entity ~= turret then
-    make_path(pickup_entity, turret.logistic_cell)
+    make_path(pickup_entity, turret.logistic_cell, "repair-beam")
   end
 
   stack.drain_durability(turret_update_interval / stack.prototype.speed)
@@ -545,7 +544,7 @@ local build_entity = function(turret, ghost, item)
   end
 
   if pickup_entity ~= turret then
-    make_path(pickup_entity, turret.logistic_cell)
+    make_path(pickup_entity, turret.logistic_cell, "construct-beam")
   end
 
   pickup_entity.remove_item(item)
@@ -557,7 +556,7 @@ local build_entity = function(turret, ghost, item)
 
   turret.surface.create_entity
   {
-    name = "repair-beam",
+    name = "construct-beam",
     source_position = source_position,
     target = entity,
     position = position,
@@ -653,7 +652,7 @@ local deconstruct_entity = function(turret, entity)
   }
   surface.create_entity
   {
-    name = "repair-beam",
+    name = "deconstruct-beam",
     target_position = source_position,
     source = rocket,
     position = position,
@@ -662,8 +661,8 @@ local deconstruct_entity = function(turret, entity)
   rendering.draw_sprite
   {
     sprite = "utility/entity_info_dark_background",
-    x_scale = 0.5,
-    y_scale = 0.5,
+    x_scale = 0.4,
+    y_scale = 0.4,
     target = rocket,
     surface = surface,
     forces = {turret.force},
@@ -687,13 +686,18 @@ local deconstruct_entity = function(turret, entity)
   local network = turret.logistic_network
   local cell = turret.logistic_cell
 
+  local made_beam = false
+
   for k, product in pairs (products) do
     local stack = stack_from_product(product)
     local drop_point = network.select_drop_point{stack = stack}
     if drop_point then
       local owner = drop_point.owner
       owner.insert(stack)
-      make_path(owner, cell)
+      if not made_beam then
+        make_path(owner, cell, "deconstruct-beam")
+        made_beam = true
+      end
     else
       surface.spill_item_stack(position, stack)
     end

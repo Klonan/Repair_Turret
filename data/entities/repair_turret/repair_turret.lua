@@ -3,6 +3,8 @@ local shared = require("shared")
 local name = shared.entities.repair_turret
 local repair_range = require("shared").repair_range
 
+local attach_beam_graphics = require("data/entities/repair_turret/beam_sprites")
+
 local turret = util.copy(data.raw.roboport.roboport)
 util.recursive_hack_scale(turret, 0.5)
 
@@ -124,17 +126,46 @@ item.stack_size = 20
 
 local laser_beam = util.copy(data.raw.beam["laser-beam"])
 
-local beam = util.copy(data.raw.beam["electric-beam"])
-beam.ground_light_animations = laser_beam.ground_light_animations
-for k, v in pairs (beam.ground_light_animations) do
+local repair_beam = util.copy(data.raw.beam["electric-beam"])
+attach_beam_graphics(repair_beam)
+repair_beam.ground_light_animations = laser_beam.ground_light_animations
+for k, v in pairs (repair_beam.ground_light_animations) do
   v.repeat_count = 16
 end
-util.recursive_hack_tint(beam, {g = 1, r = 0.1, b = 0.1})
-beam.damage_interval = 1000
-beam.name = "repair-beam"
-beam.localised_name = "repair-beam"
-beam.action_triggered_automatically = false
-beam.action = nil
+util.recursive_hack_tint(repair_beam, {g = 1, r = 0.1, b = 0.1})
+repair_beam.damage_interval = 10000
+repair_beam.name = "repair-beam"
+repair_beam.localised_name = "repair-beam"
+repair_beam.action_triggered_automatically = false
+repair_beam.action = nil
+
+local deconstruct_beam = util.copy(data.raw.beam["electric-beam"])
+attach_beam_graphics(deconstruct_beam)
+deconstruct_beam.ground_light_animations = laser_beam.ground_light_animations
+for k, v in pairs (deconstruct_beam.ground_light_animations) do
+  v.repeat_count = 16
+end
+util.recursive_hack_tint(deconstruct_beam, {g = 0.1, r = 1, b = 0.1})
+deconstruct_beam.damage_interval = 10000
+deconstruct_beam.name = "deconstruct-beam"
+deconstruct_beam.localised_name = "deconstruct-beam"
+deconstruct_beam.action_triggered_automatically = false
+deconstruct_beam.action = nil
+
+local construct_beam = util.copy(data.raw.beam["electric-beam"])
+attach_beam_graphics(construct_beam)
+construct_beam.ground_light_animations = laser_beam.ground_light_animations
+for k, v in pairs (construct_beam.ground_light_animations) do
+  v.repeat_count = 16
+end
+util.recursive_hack_tint(construct_beam, {g = 0.8, r = 0.8, b = 0.1})
+construct_beam.damage_interval = 10000
+construct_beam.name = "construct-beam"
+construct_beam.localised_name = "construct-beam"
+construct_beam.action_triggered_automatically = false
+construct_beam.action = nil
+
+
 
 local technology =
 {
@@ -323,7 +354,9 @@ data:extend
 {
   turret,
   item,
-  beam,
+  repair_beam,
+  deconstruct_beam,
+  construct_beam,
   technology,
   recipe,
   projectile,
