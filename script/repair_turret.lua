@@ -13,6 +13,7 @@ local script_data =
   repair_check_queue = {},
   beam_multiple = {},
   beam_efficiency = {},
+  can_construct = {},
   pathfinder_cache = {},
   moving_entity_buckets = {},
   non_repairable_entities = {},
@@ -41,10 +42,9 @@ end
 local repair_items
 local get_repair_items = function()
   if repair_items then return repair_items end
-  --Deliberately not 'local'
   repair_items = {}
   for name, item in pairs (game.item_prototypes) do
-    if item.type == "repair-tool" then
+    if item.type == "repair-tool" and (item.speed and item.speed > 0) then
       repair_items[name] = true
     end
   end
@@ -716,6 +716,10 @@ local validate_targets = function(entities)
   return entities
 end
 
+local can_construct = function(force)
+  return script_data.can_construct[force.name]
+end
+
 local update_turret = function(turret_data)
   --local profiler = game.create_profiler()
   local turret = turret_data.turret
@@ -728,13 +732,8 @@ local update_turret = function(turret_data)
 
   local targets = validate_targets(turret_data.targets)
 
-  local ghost, item = get_construction_target(targets, turret)
-  if ghost then
-    if build_entity(turret, ghost, item) then
-      turret.energy = new_energy
-      return
-    end
-  end
+  local force = turret.force
+
 
   local entity = get_repair_target(targets, turret.position)
   if entity then
@@ -744,12 +743,24 @@ local update_turret = function(turret_data)
     end
   end
 
-  local entity = get_deconstruction_target(targets, turret)
-  if entity then
-    if deconstruct_entity(turret, entity) then
-      turret.energy = new_energy
-      return
+  if can_construct(force) then
+
+    local ghost, item = get_construction_target(targets, turret)
+    if ghost then
+      if build_entity(turret, ghost, item) then
+        turret.energy = new_energy
+        return
+      end
     end
+
+    local entity = get_deconstruction_target(targets, turret)
+    if entity then
+      if deconstruct_entity(turret, entity) then
+        turret.energy = new_energy
+        return
+      end
+    end
+
   end
 
   if not next(turret_data.targets) then return true end  
@@ -825,7 +836,7 @@ local check_turret_update = function(event)
 
   local turret_update_mod = event.tick % turret_update_interval
   for k, turret_data in pairs (active_turrets) do
-    if k % turret_update_interval == turret_update_mod then
+    if (k * 8) % turret_update_interval == turret_update_mod then
       if update_turret(turret_data) then
         active_turrets[k] = nil
       end
@@ -963,6 +974,10 @@ local on_research_finished = function(event)
     local index = research.force.index
     local amount = 1 - (number / 4)
     script_data.beam_efficiency[index] = math.min(script_data.beam_efficiency[index] or 1, amount)
+  end
+
+  if name == "repair-turret-construction" then
+    script_data.can_construct[research.force.name] = true
   end
 
 end
@@ -1137,6 +1152,8 @@ lib.on_configuration_changed = function()
     game.print{"", "Repair turret - Rescanned map for deconstruct targets. ", profiler}
 
   end
+
+  script_data.can_construct = script_data.can_construct or {}
 
 end
 

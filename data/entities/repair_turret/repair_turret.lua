@@ -81,7 +81,7 @@ turret.localised_description = {name.."-description"}
 turret.icon = path.."repair_turret_icon.png"
 turret.icon_size = 182
 turret.icon_mipmaps = 0
-turret.logistics_radius = 1
+turret.logistics_radius = 2
 turret.logistics_connection_distance = repair_range
 turret.construction_radius = repair_range
 turret.robot_slots_count = 0
@@ -186,6 +186,39 @@ local technology =
   unit =
   {
     count = 100,
+    ingredients =
+    {
+      {"automation-science-pack", 1},
+      {"logistic-science-pack", 1}
+    },
+    time = 30
+  },
+  order = name
+}
+
+local can_construct_technology =
+{
+  name = "repair-turret-construction",
+  localised_name = {"repair-turret-construction"},
+  type = "technology",
+  icon = turret.icon,
+  icon_size = turret.icon_size,
+  effects =
+  {
+    {
+      type = "nothing",
+      effect_description = {"repair-turret-construction-description"}
+    },
+    {
+      type = "nothing",
+      effect_description = {"repair-turret-deconstruction-description"}
+    },
+  },
+
+  prerequisites = {name},
+  unit =
+  {
+    count = 500,
     ingredients =
     {
       {"automation-science-pack", 1},
@@ -358,6 +391,7 @@ data:extend
   deconstruct_beam,
   construct_beam,
   technology,
+  can_construct_technology,
   recipe,
   projectile,
   explosion
