@@ -809,6 +809,13 @@ local update_non_repairable_entities = function()
   set_damaged_event_filter()
 end
 
+local on_post_entity_died = function(event)
+  local ghost = event.ghost
+  if ghost and ghost.valid then
+    script_data.ghost_check_queue[ghost.unit_number] = ghost
+  end
+end
+
 local lib = {}
 
 lib.events =
@@ -828,6 +835,8 @@ lib.events =
   [defines.events.script_raised_destroy] = on_entity_removed,
   [defines.events.on_player_mined_entity] = on_entity_removed,
   [defines.events.on_robot_mined_entity] = on_entity_removed,
+  
+  [defines.events.on_post_entity_died] = on_post_entity_died,
 
   [defines.events.on_surface_cleared] = clear_cache,
   [defines.events.on_surface_deleted] = clear_cache,
