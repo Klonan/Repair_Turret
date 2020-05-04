@@ -159,7 +159,7 @@ local find_nearby_turrets = function(entity, for_deconstruction)
   local check_turret = function(unit_number, turret)
     if
       turret ~= entity and
-      (turret.force == force or turret.force.get_friend(force)) or (for_deconstruction and force.name == "neutral") and
+      (turret.force == force or turret.force.get_friend(force) or (for_deconstruction and force.name == "neutral")) and
       turret.surface == surface and
       is_in_range(turret.position)
     then

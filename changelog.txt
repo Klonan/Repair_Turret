@@ -1,3 +1,8 @@
+Version: 0.4.1
+Date: 2019-05-04
+  Changes:
+    - Fix error related to trying to repair things on other surfaces.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.0
 Date: 2019-05-03
   Changes:
