@@ -695,16 +695,18 @@ local deconstruct_entity = function(turret, entity)
 
   for k, product in pairs (products) do
     local stack = stack_from_product(product)
-    local drop_point = network.select_drop_point{stack = stack}
-    if drop_point then
-      local owner = drop_point.owner
-      owner.insert(stack)
-      if not made_beam then
-        make_path(owner, cell, "deconstruct-beam")
-        made_beam = true
+    if stack then
+      local drop_point = network.select_drop_point{stack = stack}
+      if drop_point then
+        local owner = drop_point.owner
+        owner.insert(stack)
+        if not made_beam then
+          make_path(owner, cell, "deconstruct-beam")
+          made_beam = true
+        end
+      else
+        surface.spill_item_stack(position, stack)
       end
-    else
-      surface.spill_item_stack(position, stack)
     end
   end
 
