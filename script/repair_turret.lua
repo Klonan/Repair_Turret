@@ -428,7 +428,7 @@ local repair_entity = function(turret_data, turret, entity)
     make_path(pickup_entity, turret.logistic_cell, "repair-beam")
   end
 
-  stack.drain_durability(turret_update_interval / stack.prototype.speed)
+  stack.drain_durability(turret_update_interval / (stack.prototype.speed or 1))
 
   local speed = 1 / 2
 
