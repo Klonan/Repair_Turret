@@ -272,6 +272,19 @@ local highlight_path = function(source, path, beam_name)
   local force = source.force
   local count = 0
 
+  if source.type ~= "roboport" then
+    local position = source.position
+    create_entity
+    {
+      name = beam_name,
+      target_position = position,
+      source_position = {position.x, position.y - 2.5},
+      force = force,
+      duration = current_duration,
+      position = position
+    }
+  end
+
   local make_beam = function(source, target)
     --count = count + 1
     --local profiler = game.create_profiler()
@@ -409,7 +422,7 @@ local repair_entity = function(turret_data, turret, entity)
 
   local pickup_entity, stack = turret_data.pickup_entity, turret_data.stack
 
-  if not (pickup_entity and pickup_entity.valid and stack.valid and stack.valid_for_read) then
+  if not (pickup_entity and pickup_entity.valid and stack.valid and stack.valid_for_read and stack.is_repair_tool) then
     pickup_entity, stack = get_pickup_entity(turret)
 
     if not pickup_entity then
@@ -428,7 +441,7 @@ local repair_entity = function(turret_data, turret, entity)
     make_path(pickup_entity, turret.logistic_cell, "repair-beam")
   end
 
-  stack.drain_durability(turret_update_interval / (stack.prototype.speed or 1))
+  stack.drain_durability(turret_update_interval / stack.prototype.speed)
 
   local speed = 1 / 2
 
