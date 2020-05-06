@@ -519,7 +519,7 @@ local get_construction_target = function(entities, turret)
 
 
   for k, entity in pairs (entities) do
-    if entity.name == "entity-ghost" then
+    if entity.valid and entity.name == "entity-ghost" then
       local item = get_item(entity)
       if item then
         if can_build(entity) then
@@ -552,6 +552,13 @@ local build_entity = function(turret, ghost, item)
   local pickup_entity = point.owner
 
   local collided_items, entity, proxy = ghost.revive(revive_param)
+
+  if collided_items then
+    for name, count in pairs (collided_items) do
+      network.insert{name = name, count = count}
+    end
+  end
+
   if not entity then
     return
   end
@@ -561,8 +568,6 @@ local build_entity = function(turret, ghost, item)
   end
 
   pickup_entity.remove_item(item)
-
-  local speed = 1 / 2
 
   local position = turret.position
   local source_position = {position.x, position.y - 2.5}
@@ -586,7 +591,7 @@ local get_deconstruction_target = function(entities, turret)
   local available = {}
 
   for k, entity in pairs (entities) do
-    if entity.to_be_deconstructed() and entity.can_be_destroyed() then
+    if entity.valid and entity.to_be_deconstructed() and entity.can_be_destroyed() then
       available[k] = entity
     end
   end
@@ -753,7 +758,6 @@ local update_turret = function(turret_data)
   local targets = validate_targets(turret_data.targets)
 
   local force = turret.force
-
 
   local entity = get_repair_target(targets, turret.position)
   if entity then
