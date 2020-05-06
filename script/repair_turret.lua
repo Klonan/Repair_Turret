@@ -647,6 +647,11 @@ end
 
 local get_contents = function(entity)
   local contents = {}
+
+  if not entity.has_items_inside() then
+    return contents
+  end
+  
   local get = entity.get_inventory
   for k = 1, 10 do
     local inventory = get(k)
