@@ -645,11 +645,25 @@ local stack_from_product = function(product)
   return stack
 end
 
+local get_contents = function(entity)
+  local contents = {}
+  local get = entity.get_inventory
+  for k = 1, 10 do
+    local inventory = get(k)
+    if not inventory then break end
+    for name, count in pairs (inventory.get_contents()) do
+      contents[name] = (contents[name] or 0) + count
+    end
+  end
+  return contents
+end
+
 local destroy_params = {raise_destroy = true}
 local deconstruct_entity = function(turret, entity)
 
   local remains = get_remains(entity)
   local products = get_products(entity)
+  local contents = get_contents(entity)
   local position = entity.position
   local force = entity.force
   local name = entity.name
@@ -725,6 +739,15 @@ local deconstruct_entity = function(turret, entity)
       else
         surface.spill_item_stack(position, stack)
       end
+    end
+  end
+
+  local insert = network.insert
+
+  for name, count in pairs (contents) do
+    local remaining = count - insert({name = name, count = count})
+    if remaining > 0 then
+      surface.spill_item_stack(position, {name = name, count = remaining})
     end
   end
 
