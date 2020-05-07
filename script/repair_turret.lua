@@ -762,7 +762,7 @@ end
 
 local validate_targets = function(entities)
   for k, entity in pairs (entities) do
-    if not (entity.valid and (entity.to_be_deconstructed or entity.get_health_ratio() < 1 or entity.name == "entity-ghost")) then
+    if not (entity.valid and (entity.to_be_deconstructed() or ((entity.get_health_ratio() or 0) < 1) or entity.name == "entity-ghost")) then
       entities[k] = nil
     end
   end
