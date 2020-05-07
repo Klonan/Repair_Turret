@@ -1,93 +1,93 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.7
-Date: 2019-05-07
+Date: 2020-05-07
   Changes:
     - Fix the dumbest performance problem ever in the history of Factorio.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.6
-Date: 2019-05-06
+Date: 2020-05-06
   Changes:
     - Fixed deconstructing entities with contents would lose items.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.5
-Date: 2019-05-06
+Date: 2020-05-06
   Changes:
     - Fix error when revived ghost is destroyed in the raised revive event.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.4
-Date: 2019-05-05
+Date: 2020-05-05
   Changes:
     - Fix error when cached pickup stack is quickly changed.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.3
-Date: 2019-05-05
+Date: 2020-05-05
   Changes:
     - Add a safety check around stacks with no repair speed.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.2
-Date: 2019-05-04
+Date: 2020-05-04
   Changes:
     - Fix error related to deconstructing items.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.1
-Date: 2019-05-04
+Date: 2020-05-04
   Changes:
     - Fix error related to trying to repair things on other surfaces.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.0
-Date: 2019-05-03
+Date: 2020-05-03
   Changes:
     - Added ability for repair turrets to construct ghosts and decostruct entities.
     - Added technology for enabling repair turrets to construct and deconstruct.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.8
-Date: 2019-01-30
+Date: 2020-01-30
   Changes:
     - Fix error trying to take repair packs from a Character entity.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.7
-Date: 2019-01-30
+Date: 2020-01-30
   Changes:
     - Fix migration error.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.6
-Date: 2019-01-30
+Date: 2020-01-30
   Changes:
     - Fix error on startup.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.5
-Date: 2019-01-26
+Date: 2020-01-26
   Changes:
     - Fix sometimes filters not being needed... (or something? Don't know, just going to return.)
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
-Date: 2019-01-26
+Date: 2020-01-26
   Changes:
     - Filter damage events to only entities that can be repaired. Helps performance a lot when you have a lot of biters getting roasted.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
-Date: 2019-01-25
+Date: 2020-01-25
   Changes:
     - Fix checking health of an entity without health.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.2
-Date: 2019-01-25
+Date: 2020-01-25
   Changes:
     - Migration fix.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
-Date: 2019-01-25
+Date: 2020-01-25
   Changes:
     - Fixed not repairing moving things damaged outside of range, then moving into range.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
-Date: 2019-01-24
+Date: 2020-01-24
   Changes:
     - 0.18 update.
     - Rewrote turret update logic. They will now heal the entity with the lowest health nearby, and heal more consistently.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.6
-Date: 2019-01-13
+Date: 2020-01-13
   Changes:
     - Attempt at optimizing some update logic.
 ---------------------------------------------------------------------------------------------------
