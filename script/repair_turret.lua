@@ -601,16 +601,31 @@ local get_deconstruction_target = function(entities, turret)
 end
 
 local products_cache = {}
+local tile_products_cache = {}
 local get_products = function(entity)
 
-  if entity.name == "item-on-ground" then return {{name = entity.stack.name, amount = entity.stack.count}} end
+  local name = entity.name
+  if name == "item-on-ground" then return {{name = entity.stack.name, amount = entity.stack.count}} end
 
-  local products = products_cache[entity.name]
+  if name == "deconstructible-tile-proxy" then
+
+    local tile = entity.surface.get_tile(entity.position)
+    local tile_name = tile.name
+    
+    local tile_products = tile_products_cache[name]
+    if tile_products then return tile_products end
+
+    tile_products = tile.prototype.mineable_properties.products
+    tile_products_cache[name] = tile_products
+    return tile_products
+  end
+
+  local products = products_cache[name]
   if products then return products end
 
-  products = entity.prototype.mineable_properties.products or {}
+  products = entity.prototype.mineable_properties.products
 
-  products_cache[entity.name] = products
+  products_cache[name] = products
 
   return products
 
@@ -672,11 +687,25 @@ local deconstruct_entity = function(turret, entity)
   local position = entity.position
   local force = entity.force
   local name = entity.name
+  local surface = entity.surface
+  local tiles
+  if entity.name == "deconstructible-tile-proxy" then
+    local tile_name = surface.get_hidden_tile(position)
+    if tile_name then
+      tiles = 
+      {
+        {name = tile_name, position = position}
+      }
+    end
+  end
 
   local success = entity.destroy(destroy_params)
   if not success then return end
   
-  local surface = turret.surface
+
+  if tiles then
+    surface.set_tiles(tiles)
+  end
 
   local source_position = {turret.position.x, turret.position.y - 2.5}
 
@@ -697,29 +726,6 @@ local deconstruct_entity = function(turret, entity)
     position = position,
     force = force
   }
-  --[[
-
-    rendering.draw_sprite
-    {
-      sprite = "utility/entity_info_dark_background",
-      x_scale = 0.4,
-      y_scale = 0.4,
-      target = rocket,
-      surface = surface,
-      forces = {turret.force},
-      only_in_alt_mode = true
-    }
-    rendering.draw_sprite
-    {
-      sprite = "entity/"..name,
-      x_scale = 0.5,
-      y_scale = 0.5,
-      target = rocket,
-      surface = surface,
-      forces = {turret.force},
-      only_in_alt_mode = true
-    }
-    ]]
 
   for k, remains in pairs(remains) do
     surface.create_entity{name = remains.name, position = position, force = force}
