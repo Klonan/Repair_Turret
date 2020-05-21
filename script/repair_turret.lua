@@ -35,6 +35,12 @@ local moving_entities =
   ["logistic-robot"] = true
 }
 
+local ghost_names =
+{
+  ["entity-ghost"] = true,
+  ["tile-ghost"] = true
+}
+
 local can_move = function(entity)
   return moving_entities[entity.type]
 end
@@ -201,7 +207,7 @@ local add_nearby_ghost_entities_to_ghost_check_queue = function(entity)
   local position = entity.position
   local ghost_check_queue = script_data.ghost_check_queue
   local area = {{position.x - repair_range, position.y - repair_range}, {position.x + repair_range, position.y + repair_range}}
-  for k, entity in pairs (entity.surface.find_entities_filtered{area = area, name = "entity-ghost"}) do
+  for k, entity in pairs (entity.surface.find_entities_filtered{area = area, name = {"entity-ghost", "tile-ghost"}}) do
     ghost_check_queue[entity.unit_number] = entity
   end
 end
@@ -228,12 +234,14 @@ local on_created_entity = function(event)
   local entity = event.created_entity or event.entity or event.destination
   if not (entity and entity.valid) then return end
 
-  if entity.name == "entity-ghost" then
+  local name = entity.name
+
+  if ghost_names[name] then
     entity_ghost_built(entity)
     return
   end
 
-  if entity.name == turret_name then
+  if name == turret_name then
     add_to_turret_map(entity)
     add_nearby_damaged_entities_to_repair_check_queue(entity)
     add_nearby_ghost_entities_to_ghost_check_queue(entity)
@@ -479,10 +487,9 @@ local get_items_to_place = function(ghost)
 
   local name = ghost.ghost_name
   local items = items_to_place_cache[name]
-
   if items then return items end
     
-  local prototype = game.entity_prototypes[name]
+  local prototype = ghost.ghost_prototype
   items = prototype.items_to_place_this
   items_to_place_cache[name] = items
 
@@ -504,6 +511,7 @@ local get_construction_target = function(entities, turret)
   local surface = turret.surface
   local can_place = surface.can_place_entity
   local can_build = function(ghost)
+    if ghost.name == "tile-ghost" then return true end
     return can_place
     {
       name = ghost.ghost_name,
@@ -515,11 +523,10 @@ local get_construction_target = function(entities, turret)
   end
 
   local items = {}
-  local ghosts = {}
-
+  local ghosts = {}  
 
   for k, entity in pairs (entities) do
-    if entity.valid and entity.name == "entity-ghost" then
+    if entity.valid and ghost_names[entity.name] then
       local item = get_item(entity)
       if item then
         if can_build(entity) then
@@ -551,16 +558,15 @@ local build_entity = function(turret, ghost, item)
 
   local pickup_entity = point.owner
 
+  local target_position = ghost.position
+  local force = ghost.force
+
   local collided_items, entity, proxy = ghost.revive(revive_param)
 
   if collided_items then
     for name, count in pairs (collided_items) do
       network.insert{name = name, count = count}
     end
-  end
-
-  if not entity then
-    return
   end
 
   if pickup_entity ~= turret then
@@ -577,8 +583,9 @@ local build_entity = function(turret, ghost, item)
     name = "construct-beam",
     source_position = source_position,
     target = entity,
+    target_position = target_position,
     position = position,
-    force = entity.force,
+    force = force,
     duration = turret_update_interval
   }
 
@@ -678,6 +685,7 @@ local get_contents = function(entity)
   return contents
 end
 
+local random = math.random
 local destroy_params = {raise_destroy = true}
 local deconstruct_entity = function(turret, entity)
 
@@ -712,12 +720,13 @@ local deconstruct_entity = function(turret, entity)
   local rocket = surface.create_entity
   {
     name = "repair-bullet",
-    speed = 0.5,
+    speed = 0.25,
     position = position,
     target = source_position,
     force = force,
     max_range = repair_range * 2
   }
+  
   surface.create_entity
   {
     name = "deconstruct-beam",
@@ -768,7 +777,7 @@ end
 
 local validate_targets = function(entities)
   for k, entity in pairs (entities) do
-    if not (entity.valid and (entity.to_be_deconstructed() or ((entity.get_health_ratio() or 0) < 1) or entity.name == "entity-ghost")) then
+    if not (entity.valid and (entity.to_be_deconstructed() or ((entity.get_health_ratio() or 0) < 1) or ghost_names[entity.name])) then
       entities[k] = nil
     end
   end

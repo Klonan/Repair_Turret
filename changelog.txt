@@ -2,7 +2,7 @@
 Version: 0.4.8
 Date: 2020-05-21
   Changes:
-    - Add deconstructing tiles.
+    - Add constructing and deconstructing tiles.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.7
 Date: 2020-05-07
