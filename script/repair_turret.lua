@@ -499,7 +499,12 @@ end
 
 local get_construction_target = function(entities, turret)
 
-  local contents = turret.logistic_network.get_contents()
+  local network = turret.logistic_network
+  if not next(network.provider_points) then return end
+
+  local contents = network.get_contents()
+  if not next(contents) then return end
+  
   local get_item = function(ghost)
     for k, item in pairs (get_items_to_place(ghost)) do
       if (contents[item.name] or 0) >= item.count then
@@ -594,8 +599,9 @@ local build_entity = function(turret, ghost, item)
 end
 
 local get_deconstruction_target = function(entities, turret)
-  
+
   local available = {}
+  if not next(turret.logistic_network.storage_points) then return end
 
   for k, entity in pairs (entities) do
     if entity.valid and entity.to_be_deconstructed() and entity.can_be_destroyed() then
@@ -726,7 +732,6 @@ local deconstruct_entity = function(turret, entity)
     force = force,
     max_range = repair_range * 2
   }
-  
   surface.create_entity
   {
     name = "deconstruct-beam",
