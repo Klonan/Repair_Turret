@@ -268,19 +268,6 @@ projectile.action =
   }
 }
 
-projectile.animation =
-{
-  filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
-  priority = "high",
-  width = 37,
-  height = 35,
-  frame_count = 16,
-  scale = 1.6,
-  animation_speed = 0.3,
-  repeat_count = 5,
-  shift = {0, 0}
-}
-
 projectile.animation = {}
 
 for scale = 1.4, 1.6, 0.05 do
@@ -584,3 +571,44 @@ local efficiency_technologies =
   },
 }
 data:extend(efficiency_technologies)
+
+local projectile = util.copy(data.raw.projectile["rocket"])
+projectile.name = "deconstruct-bullet"
+projectile.localised_name = "Deconstruct bullet"
+projectile.smoke = nil
+projectile.acceleration = 0.02
+projectile.max_speed = 0.25
+projectile.height = 0
+projectile.shadow = nil
+projectile.action = nil
+
+projectile.animation = {}
+
+for scale = 1.4, 1.6, 0.05 do
+  for speed = 0.2, 0.4, 0.05 do
+    table.insert(projectile.animation,
+    {
+      filename = "__base__/graphics/entity/roboport/roboport-recharging.png",
+      priority = "high",
+      width = 37,
+      height = 35,
+      frame_count = 16,
+      scale = scale,
+      animation_speed = speed,
+      shift = {0, 0},
+      tint = {r = 1, g = 0.2, b = 0.2},
+      blend_mode = "additive"
+    }
+  )
+  end
+end
+
+projectile.light =
+{
+  intensity = 0.5, size = 5, color = {r=1, g=0.2, b=0.2}, add_perspective = true
+}
+
+data:extend
+{
+  projectile
+}

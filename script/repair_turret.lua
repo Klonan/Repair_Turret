@@ -725,8 +725,8 @@ local deconstruct_entity = function(turret, entity)
 
   local rocket = surface.create_entity
   {
-    name = "repair-bullet",
-    speed = 0.25,
+    name = "deconstruct-bullet",
+    speed = -0.1,
     position = position,
     target = source_position,
     force = force,
