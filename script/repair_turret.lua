@@ -724,20 +724,19 @@ local belt_connectible_type =
 local get_contents = function(entity)
   local contents = {}
 
-  if not entity.has_items_inside() then
-    return contents
-  end
-
-  local get = entity.get_inventory
-  for k = 1, 10 do
-    local inventory = get(k)
-    if not inventory then break end
-    for name, count in pairs (inventory.get_contents()) do
-      contents[name] = (contents[name] or 0) + count
+  if entity.has_items_inside() then
+    local get = entity.get_inventory
+    for k = 1, 10 do
+      local inventory = get(k)
+      if not inventory then break end
+      for name, count in pairs (inventory.get_contents()) do
+        contents[name] = (contents[name] or 0) + count
+      end
     end
+
   end
 
-  local belt_index = belt_connectible_type[entity.name]
+  local belt_index = belt_connectible_type[entity.type]
   if belt_index then
     local get = entity.get_transport_line
     for k = 1, belt_index do
@@ -747,6 +746,7 @@ local get_contents = function(entity)
         contents[name] = (contents[name] or 0) + count
       end
     end
+
   end
 
   return contents
