@@ -488,7 +488,7 @@ local get_items_to_place = function(ghost)
   local name = ghost.ghost_name
   local items = items_to_place_cache[name]
   if items then return items end
-    
+
   local prototype = ghost.ghost_prototype
   items = prototype.items_to_place_this
   items_to_place_cache[name] = items
@@ -497,14 +497,16 @@ local get_items_to_place = function(ghost)
 
 end
 
-local get_construction_target = function(entities, turret)
+local get_construction_target = function(entities, turret, turret_data)
 
   local network = turret.logistic_network
-  if not next(network.provider_points) then return end
+  --if not next(network.provider_points) then return end
 
   local contents = network.get_contents()
   if not next(contents) then return end
-  
+
+  --turret.surface.create_entity{name = "flying-text", position = turret.position, text = table_size(entities)}
+
   local get_item = function(ghost)
     for k, item in pairs (get_items_to_place(ghost)) do
       if (contents[item.name] or 0) >= item.count then
@@ -528,23 +530,61 @@ local get_construction_target = function(entities, turret)
   end
 
   local items = {}
-  local ghosts = {}  
+  local ghosts = {}
+
+  local low_priority_queue = turret_data.low_priority_queue
+  if not low_priority_queue then
+    low_priority_queue = {}
+    turret_data.low_priority_queue = low_priority_queue
+  end
 
   for k, entity in pairs (entities) do
     if entity.valid and ghost_names[entity.name] then
       local item = get_item(entity)
-      if item then
-        if can_build(entity) then
-          items[k] = item
-          ghosts[k] = entity
-        end
+      if item and can_build(entity) then
+        items[k] = item
+        ghosts[k] = entity
+      else
+        low_priority_queue[k] = entity
+        entities[k] = nil
       end
     end
   end
 
   local closest = surface.get_closest(turret.position, ghosts)
   if closest then
+    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Close"}
     return closest, items[closest.unit_number]
+  end
+
+  local checked_queue = turret_data.checked_queue
+  if not checked_queue then
+    checked_queue = {}
+    turret_data.checked_queue = checked_queue
+  end
+
+  if not next(low_priority_queue) then
+    turret_data.low_priority_queue = checked_queue
+    low_priority_queue = checked_queue
+    checked_queue = {}
+    turret_data.checked_queue = checked_queue
+
+    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Queue swap"}
+  end
+
+  local index, entity = next(low_priority_queue)
+
+  if entity then
+    low_priority_queue[index] = nil
+    if entity.valid then
+      --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
+      local item = get_item(entity)
+      if item and can_build(entity) then
+        return entity, item
+      else
+        checked_queue[index] = entity
+      end
+    end
   end
 
 end
@@ -624,7 +664,7 @@ local get_products = function(entity)
 
     local tile = entity.surface.get_tile(entity.position)
     local tile_name = tile.name
-    
+
     local tile_products = tile_products_cache[name]
     if tile_products then return tile_products end
 
@@ -650,7 +690,7 @@ local get_remains = function(entity)
   local remains = remains_cache[entity.name]
   if remains then return remains end
 
-  remains = entity.prototype.remains_when_mined 
+  remains = entity.prototype.remains_when_mined
 
   remains_cache[entity.name] = remains
 
@@ -679,7 +719,7 @@ local get_contents = function(entity)
   if not entity.has_items_inside() then
     return contents
   end
-  
+
   local get = entity.get_inventory
   for k = 1, 10 do
     local inventory = get(k)
@@ -706,7 +746,7 @@ local deconstruct_entity = function(turret, entity)
   if entity.name == "deconstructible-tile-proxy" then
     local tile_name = surface.get_hidden_tile(position)
     if tile_name then
-      tiles = 
+      tiles =
       {
         {name = tile_name, position = position}
       }
@@ -715,7 +755,7 @@ local deconstruct_entity = function(turret, entity)
 
   local success = entity.destroy(destroy_params)
   if not success then return end
-  
+
 
   if tiles then
     surface.set_tiles(tiles)
@@ -817,7 +857,7 @@ local update_turret = function(turret_data)
 
   if can_construct(force) then
 
-    local ghost, item = get_construction_target(targets, turret)
+    local ghost, item = get_construction_target(targets, turret, turret_data)
     if ghost then
       if build_entity(turret, ghost, item) then
         turret.energy = new_energy
@@ -835,7 +875,9 @@ local update_turret = function(turret_data)
 
   end
 
-  if not next(turret_data.targets) then return true end  
+  if not (next(turret_data.targets) or next(turret_data.low_priority_queue) or next(turret_data.checked_queue)) then
+    return true
+  end
 
 end
 
@@ -1129,12 +1171,12 @@ lib.events =
   [defines.events.script_raised_destroy] = on_entity_removed,
   [defines.events.on_player_mined_entity] = on_entity_removed,
   [defines.events.on_robot_mined_entity] = on_entity_removed,
-  
+
   [defines.events.on_post_entity_died] = on_post_entity_died,
 
   [defines.events.on_surface_cleared] = clear_cache,
   [defines.events.on_surface_deleted] = clear_cache,
-  
+
   [defines.events.on_marked_for_deconstruction] = on_marked_for_deconstruction,
 }
 
@@ -1227,10 +1269,6 @@ lib.on_configuration_changed = function()
 
   script_data.can_construct = script_data.can_construct or {}
 
-end
-
-lib.on_init = function()
-  global.repair_turret = global.repair_turret or script_data
 end
 
 return lib
