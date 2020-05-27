@@ -781,8 +781,10 @@ local deconstruct_entity = function(turret, entity)
     force = force
   }
 
-  for k, remains in pairs(remains) do
-    surface.create_entity{name = remains.name, position = position, force = force}
+  if remains then
+    for k, remains in pairs(remains) do
+      surface.create_entity{name = remains.name, position = position, force = force}
+    end
   end
 
   local network = turret.logistic_network
@@ -790,29 +792,32 @@ local deconstruct_entity = function(turret, entity)
 
   local made_beam = false
 
-  for k, product in pairs (products) do
-    local stack = stack_from_product(product)
-    if stack then
-      local drop_point = network.select_drop_point{stack = stack}
-      if drop_point then
-        local owner = drop_point.owner
-        owner.insert(stack)
-        if not made_beam then
-          make_path(owner, cell, "deconstruct-beam")
-          made_beam = true
+  if products then
+    for k, product in pairs (products) do
+      local stack = stack_from_product(product)
+      if stack then
+        local drop_point = network.select_drop_point{stack = stack}
+        if drop_point then
+          local owner = drop_point.owner
+          owner.insert(stack)
+          if not made_beam then
+            make_path(owner, cell, "deconstruct-beam")
+            made_beam = true
+          end
+        else
+          surface.spill_item_stack(position, stack)
         end
-      else
-        surface.spill_item_stack(position, stack)
       end
     end
   end
 
-  local insert = network.insert
-
-  for name, count in pairs (contents) do
-    local remaining = count - insert({name = name, count = count})
-    if remaining > 0 then
-      surface.spill_item_stack(position, {name = name, count = remaining})
+  if contents then
+    local insert = network.insert
+    for name, count in pairs (contents) do
+      local remaining = count - insert({name = name, count = count})
+      if remaining > 0 then
+        surface.spill_item_stack(position, {name = name, count = remaining})
+      end
     end
   end
 
