@@ -713,6 +713,14 @@ local stack_from_product = function(product)
   return stack
 end
 
+local belt_connectible_type =
+{
+  ["transport-belt"] = 2,
+  ["underground-belt"] = 4,
+  ["splitter"] = 8,
+  ["loader"] = 2,
+}
+
 local get_contents = function(entity)
   local contents = {}
 
@@ -728,6 +736,19 @@ local get_contents = function(entity)
       contents[name] = (contents[name] or 0) + count
     end
   end
+
+  local belt_index = belt_connectible_type[entity.name]
+  if belt_index then
+    local get = entity.get_transport_line
+    for k = 1, belt_index do
+      local inventory = get(k)
+      if not inventory then break end
+      for name, count in pairs (inventory.get_contents()) do
+        contents[name] = (contents[name] or 0) + count
+      end
+    end
+  end
+
   return contents
 end
 
