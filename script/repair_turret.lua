@@ -901,10 +901,19 @@ local update_turret = function(turret_data)
 
   end
 
-  if not (next(turret_data.targets) or next(turret_data.low_priority_queue) or next(turret_data.checked_queue)) then
-    return true
+  if turret_data.targets and next(turret_data.targets) then
+    return
   end
 
+  if turret_data.low_priority_queue and next(turret_data.low_priority_queue) then
+    return
+  end
+
+  if turret_data.checked_queue and next(turret_data.checked_queue) then
+    return
+  end
+
+  return true
 end
 
 local check_repair = function(unit_number, entity)
