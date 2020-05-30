@@ -18,7 +18,8 @@ local script_data =
   moving_entity_buckets = {},
   non_repairable_entities = {},
   ghost_check_queue = {},
-  deconstruct_check_queue = {}
+  deconstruct_check_queue = {},
+  proxy_inventory = nil
 }
 
 local moving_entities =
@@ -653,117 +654,17 @@ local get_deconstruction_target = function(entities, turret)
 
 end
 
-local products_cache = {}
-local tile_products_cache = {}
-local get_products = function(entity)
-
-  local name = entity.name
-  if name == "item-on-ground" then return {{name = entity.stack.name, amount = entity.stack.count}} end
-
-  if name == "deconstructible-tile-proxy" then
-
-    local tile = entity.surface.get_tile(entity.position)
-    local tile_name = tile.name
-
-    local tile_products = tile_products_cache[name]
-    if tile_products then return tile_products end
-
-    tile_products = tile.prototype.mineable_properties.products
-    tile_products_cache[name] = tile_products
-    return tile_products
-  end
-
-  local products = products_cache[name]
-  if products then return products end
-
-  products = entity.prototype.mineable_properties.products
-
-  products_cache[name] = products
-
-  return products
-
-end
-
-local remains_cache = {}
-local get_remains = function(entity)
-
-  local remains = remains_cache[entity.name]
-  if remains then return remains end
-
-  remains = entity.prototype.remains_when_mined
-
-  remains_cache[entity.name] = remains
-
-  return remains
-
-end
-
-
-local floor = math.floor
-local random = math.random
-local stack_from_product = function(product)
-  local count = floor(product.amount or (random() * (product.amount_max - product.amount_min) + product.amount_min))
-  if count < 1 then return end
-  local stack =
-  {
-    name = product.name,
-    count = count
-  }
-  --print(serpent.line(stack))
-  return stack
-end
-
-local belt_connectible_type =
-{
-  ["transport-belt"] = 2,
-  ["underground-belt"] = 4,
-  ["splitter"] = 8,
-  ["loader"] = 2,
-}
-
-local get_contents = function(entity)
-  local contents = {}
-
-  if entity.has_items_inside() then
-    local get = entity.get_inventory
-    for k = 1, 10 do
-      local inventory = get(k)
-      if not inventory then break end
-      for name, count in pairs (inventory.get_contents()) do
-        contents[name] = (contents[name] or 0) + count
-      end
-    end
-
-  end
-
-  local belt_index = belt_connectible_type[entity.type]
-  if belt_index then
-    local get = entity.get_transport_line
-    for k = 1, belt_index do
-      local inventory = get(k)
-      if not inventory then break end
-      for name, count in pairs (inventory.get_contents()) do
-        contents[name] = (contents[name] or 0) + count
-      end
-    end
-
-  end
-
-  return contents
-end
-
 local random = math.random
 local destroy_params = {raise_destroy = true}
 local deconstruct_entity = function(turret, entity)
 
-  local remains = get_remains(entity)
-  local products = get_products(entity)
-  local contents = get_contents(entity)
+  local inventory = script_data.proxy_inventory
   local position = entity.position
   local force = entity.force
   local name = entity.name
   local surface = entity.surface
   local tiles
+
   if entity.name == "deconstructible-tile-proxy" then
     local tile_name = surface.get_hidden_tile(position)
     if tile_name then
@@ -774,9 +675,11 @@ local deconstruct_entity = function(turret, entity)
     end
   end
 
-  local success = entity.destroy(destroy_params)
+  local success = entity.mine
+  {
+    inventory = inventory
+  }
   if not success then return end
-
 
   if tiles then
     surface.set_tiles(tiles)
@@ -802,44 +705,36 @@ local deconstruct_entity = function(turret, entity)
     force = force
   }
 
-  if remains then
-    for k, remains in pairs(remains) do
-      surface.create_entity{name = remains.name, position = position, force = force}
-    end
-  end
-
   local network = turret.logistic_network
   local cell = turret.logistic_cell
 
   local made_beam = false
 
-  if products then
-    for k, product in pairs (products) do
-      local stack = stack_from_product(product)
-      if stack then
-        local drop_point = network.select_drop_point{stack = stack}
-        if drop_point then
-          local owner = drop_point.owner
-          owner.insert(stack)
-          if not made_beam then
-            make_path(owner, cell, "deconstruct-beam")
-            made_beam = true
-          end
-        else
-          surface.spill_item_stack(position, stack)
-        end
-      end
-    end
-  end
+  inventory.sort_and_merge()
 
-  if contents then
-    local insert = network.insert
-    for name, count in pairs (contents) do
-      local remaining = count - insert({name = name, count = count})
-      if remaining > 0 then
-        surface.spill_item_stack(position, {name = name, count = remaining})
+  local stack_index = 1
+  while true do
+    local stack = inventory[stack_index]
+    if not stack.valid_for_read then break end
+    local count = stack.count
+    if not made_beam then
+      local drop_point = network.select_drop_point{stack = stack}
+      if drop_point then
+        local owner = drop_point.owner
+        count = count - owner.insert(stack)
+        make_path(owner, cell, "deconstruct-beam")
+        made_beam = true
       end
     end
+    if count > 0 then
+      count = count - network.insert(stack)
+    end
+    if count > 0 then
+      stack.count = count
+      surface.spill_item_stack(position, stack)
+    end
+    stack.clear()
+    stack_index = stack_index + 1
   end
 
   return true
@@ -1218,6 +1113,7 @@ lib.events =
 lib.on_init = function()
   global.repair_turret = global.repair_turret or script_data
   pathfinding.cache = script_data.pathfinder_cache
+  script_data.proxy_inventory = game.create_inventory(200)
 end
 
 lib.on_load = function()
@@ -1303,6 +1199,8 @@ lib.on_configuration_changed = function()
   end
 
   script_data.can_construct = script_data.can_construct or {}
+
+  script_data.proxy_inventory = script_data.proxy_inventory or game.create_inventory(200)
 
 end
 
