@@ -712,8 +712,7 @@ local deconstruct_entity = function(turret, entity)
 
   inventory.sort_and_merge()
 
-  local stack_index = 1
-  while true do
+  for stack_index = 1, #inventory do
     local stack = inventory[stack_index]
     if not stack.valid_for_read then break end
     local count = stack.count
@@ -734,7 +733,6 @@ local deconstruct_entity = function(turret, entity)
       surface.spill_item_stack(position, stack)
     end
     stack.clear()
-    stack_index = stack_index + 1
   end
 
   return true
