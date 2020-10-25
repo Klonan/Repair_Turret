@@ -182,7 +182,7 @@ local technology =
     }
   },
 
-  prerequisites = {"turrets"},
+  prerequisites = {"gun-turret"},
   unit =
   {
     count = 100,
@@ -250,6 +250,7 @@ projectile.name = "repair-bullet"
 projectile.localised_name = "Repair bullet"
 projectile.smoke = nil
 projectile.acceleration = 0.00
+projectile.turning_speed_increases_exponentially_with_projectile_speed = false
 projectile.height = 0
 projectile.shadow = nil
 projectile.action =
