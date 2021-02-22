@@ -739,9 +739,9 @@ local deconstruct_entity = function(turret, entity)
 
 end
 
-local validate_targets = function(entities)
+local validate_targets = function(entities, surface)
   for k, entity in pairs (entities) do
-    if not (entity.valid and (entity.to_be_deconstructed() or ((entity.get_health_ratio() or 0) < 1) or ghost_names[entity.name])) then
+    if not (entity.valid and (entity.surface == surface) and (entity.to_be_deconstructed() or ((entity.get_health_ratio() or 0) < 1) or ghost_names[entity.name])) then
       entities[k] = nil
     end
   end
@@ -762,7 +762,7 @@ local update_turret = function(turret_data)
     return
   end
 
-  local targets = validate_targets(turret_data.targets)
+  local targets = validate_targets(turret_data.targets, turret.surface)
 
   local force = turret.force
 
