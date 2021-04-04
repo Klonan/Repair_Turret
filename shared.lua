@@ -7,6 +7,6 @@ data.entities =
   repair_turret = "repair-turret",
 }
 
-data.repair_range = 25
+data.repair_range = settings.startup["repair_turret_range"].value
 
 return data
