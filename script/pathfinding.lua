@@ -106,7 +106,10 @@ lib.cache = {}
 
 lib.get_cell_path = function(source, destination_cell)
 
-  local origin_cell = destination_cell.logistic_network.find_cell_closest_to(source.position)
+  local logistic_network = destination_cell.logistic_network
+  if not logistic_network then return end
+
+  local origin_cell = logistic_network.find_cell_closest_to(source.position)
   if not destination_cell and origin_cell then return end
 
   local origin_cache = lib.cache[source.unit_number]
