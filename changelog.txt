@@ -5,6 +5,7 @@ Date: 2022-06-06
     - Fix compatibility with version 1.1.60.
     - Attempt to fix repairing rocks marked for deconstruction.
     - Fix spidertrons were not in the moving repair list.
+    - Added a mod startup setting to change the repair range. Thanks to hungarian-notation on Github.
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.1
 Date: 2021-02-22
