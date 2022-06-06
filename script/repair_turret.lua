@@ -974,11 +974,11 @@ end
 
 local on_tick = function(event)
 
-  check_repair_check_queue()
+  check_deconstruction_check_queue()
 
   check_ghost_check_queue()
 
-  check_deconstruction_check_queue()
+  check_repair_check_queue()
 
   check_moving_entity_repair(event)
 
