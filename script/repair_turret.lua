@@ -33,7 +33,8 @@ local moving_entities =
   ["fluid-wagon"] = true,
   ["artillery-wagon"] = true,
   ["construction-robot"] = true,
-  ["logistic-robot"] = true
+  ["logistic-robot"] = true,
+  ["spider-vehicle"] = true
 }
 
 local ghost_names =
