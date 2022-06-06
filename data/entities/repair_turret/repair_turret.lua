@@ -95,7 +95,7 @@ turret.energy_source =
   input_flow_limit = "1MW",
   buffer_capacity = "10MJ"
 }
-turret.recharge_minimum = "1J"
+turret.recharge_minimum = "20kJ"
 turret.collision_box = util.area({0,0}, 0.7)
 turret.selection_box = util.area({0,0}, 1)
 --turret.hit_visualization_box = util.area({0, -2.5}, 0.1)
