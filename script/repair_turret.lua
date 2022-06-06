@@ -205,12 +205,12 @@ local add_nearby_damaged_entities_to_repair_check_queue = function(entity)
   end
 end
 
-local ghost_names = {"entity-ghost", "tile-ghost"}
+local ghost_check_names = {"entity-ghost", "tile-ghost"}
 local add_nearby_ghost_entities_to_ghost_check_queue = function(entity)
   local position = entity.position
   local ghost_check_queue = script_data.ghost_check_queue
   local area = {{position.x - repair_range, position.y - repair_range}, {position.x + repair_range, position.y + repair_range}}
-  for k, entity in pairs (entity.surface.find_entities_filtered{area = area, name = ghost_names}) do
+  for k, entity in pairs (entity.surface.find_entities_filtered{area = area, name = ghost_check_names}) do
     ghost_check_queue[entity.unit_number] = entity
   end
 end
