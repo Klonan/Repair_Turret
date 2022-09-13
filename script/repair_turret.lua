@@ -732,7 +732,7 @@ local deconstruct_entity = function(turret, entity)
     end
     if count > 0 then
       stack.count = count
-      surface.spill_item_stack(position, stack)
+      surface.spill_item_stack(position, stack, false, nil, false)
     end
     stack.clear()
   end
