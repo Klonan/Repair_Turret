@@ -1,0 +1,9 @@
+{
+  "factorio.versions": [
+    {
+      "name": "Factorio run",
+      "factorioPath": "c:\\Factorio\\bin\\Releasex64vsbt\\factorio-run.exe",
+      "active": true
+    }
+  ]
+}

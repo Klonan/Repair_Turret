@@ -377,15 +377,18 @@ local get_pickup_entity = function(turret)
 
   if not pickup_point then return end
 
-  local stack
   local owner = pickup_point.owner
-  if owner.type == "roboport" then
-    stack = owner.get_inventory(defines.inventory.roboport_material).find_item_stack(repair_item)
-  elseif owner.type == "character" then
-    stack = owner.get_main_inventory().find_item_stack(repair_item)
+  local inventory
+  local owner_type = owner.type
+  if owner_type == "roboport" then
+    inventory = owner.get_inventory(defines.inventory.roboport_material)
+  elseif owner_type == "character" then
+    inventory = owner.get_main_inventory()
   else
-    stack = owner.get_output_inventory().find_item_stack(repair_item)
+    inventory = owner.get_output_inventory()
   end
+
+  local stack = inventory and inventory.find_item_stack(repair_item)
 
   if not (stack and stack.valid and stack.valid_for_read) then return end
 
