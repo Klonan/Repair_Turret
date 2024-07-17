@@ -8,6 +8,7 @@
   "Lua.diagnostics.disable": [
     "spell-check",
     "codestyle-check",
-    "undefined-global"
+    "undefined-global",
+    "name-style-check"
   ]
 }
