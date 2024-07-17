@@ -1,11 +1,11 @@
 {
   "name": "Repair_Turret",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "title": "Repair Turret",
   "author": "Klonan",
   "contact": "",
   "homepage": "",
   "description": "Adds Repair Turrets",
   "dependencies": ["base >= 1.1.0"],
-  "factorio_version": "1.1"
+  "factorio_version": "1.2"
 }

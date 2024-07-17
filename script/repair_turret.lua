@@ -762,7 +762,7 @@ local update_turret = function(turret_data)
   local turret = turret_data.turret
   if not (turret and turret.valid) then return true end
 
-  new_energy = turret.energy - get_needed_energy(turret.force)
+  local new_energy = turret.energy - get_needed_energy(turret.force)
   if new_energy < 0 then
     return
   end
@@ -1078,7 +1078,6 @@ local on_post_entity_died = function(event)
   end
 end
 
-local insert = table.insert
 local on_marked_for_deconstruction = function(event)
   local entity = event.entity
   if entity and entity.valid then
@@ -1090,7 +1089,7 @@ local lib = {}
 
 lib.events =
 {
-  --[defines.events.on_player_created] = on_player_created,
+  [defines.events.on_player_created] = on_player_created,
   [defines.events.on_built_entity] = on_created_entity,
   [defines.events.on_robot_built_entity] = on_created_entity,
   [defines.events.script_raised_built] = on_created_entity,

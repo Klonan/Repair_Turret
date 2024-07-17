@@ -2,8 +2,12 @@
   "factorio.versions": [
     {
       "name": "Factorio run",
-      "factorioPath": "c:\\Factorio\\bin\\Releasex64vsbt\\factorio-run.exe",
-      "active": true
+      "factorioPath": "c:\\Factorio\\bin\\Releasex64vsbt\\factorio-run.exe"
     }
+  ],
+  "Lua.diagnostics.disable": [
+    "spell-check",
+    "codestyle-check",
+    "undefined-global"
   ]
 }

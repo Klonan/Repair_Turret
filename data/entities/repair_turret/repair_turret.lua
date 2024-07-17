@@ -50,7 +50,7 @@ local animation =
 {layers =
 {
 {
-  filename = "__base__/graphics/entity/roboport/hr-roboport-base-animation.png",
+  filename = "__base__/graphics/entity/roboport/roboport-base-animation.png",
   priority = "medium",
   width = 83,
   height = 59,
@@ -128,8 +128,8 @@ local laser_beam = util.copy(data.raw.beam["laser-beam"])
 
 local repair_beam = util.copy(data.raw.beam["electric-beam"])
 attach_beam_graphics(repair_beam)
-repair_beam.ground_light_animations = laser_beam.ground_light_animations
-for k, v in pairs (repair_beam.ground_light_animations) do
+repair_beam.graphics_set.ground = laser_beam.graphics_set.ground
+for k, v in pairs (repair_beam.graphics_set.ground) do
   v.repeat_count = 16
 end
 util.recursive_hack_tint(repair_beam, {g = 1, r = 0.1, b = 0.1})
@@ -141,8 +141,8 @@ repair_beam.action = nil
 
 local deconstruct_beam = util.copy(data.raw.beam["electric-beam"])
 attach_beam_graphics(deconstruct_beam)
-deconstruct_beam.ground_light_animations = laser_beam.ground_light_animations
-for k, v in pairs (deconstruct_beam.ground_light_animations) do
+deconstruct_beam.graphics_set.ground = laser_beam.graphics_set.ground
+for k, v in pairs (deconstruct_beam.graphics_set.ground) do
   v.repeat_count = 16
 end
 util.recursive_hack_tint(deconstruct_beam, {g = 0.1, r = 1, b = 0.1})
@@ -154,8 +154,8 @@ deconstruct_beam.action = nil
 
 local construct_beam = util.copy(data.raw.beam["electric-beam"])
 attach_beam_graphics(construct_beam)
-construct_beam.ground_light_animations = laser_beam.ground_light_animations
-for k, v in pairs (construct_beam.ground_light_animations) do
+construct_beam.graphics_set.ground = laser_beam.graphics_set.ground
+for k, v in pairs (construct_beam.graphics_set.ground) do
   v.repeat_count = 16
 end
 util.recursive_hack_tint(construct_beam, {g = 0.8, r = 0.8, b = 0.1})
@@ -242,7 +242,7 @@ local recipe =
     {"steel-plate", 5}
   },
   energy_required = 10,
-  result = name
+  results = {{type = "item", name = name, amount = 1}}
 }
 
 local projectile = util.copy(data.raw.projectile["rocket"])
