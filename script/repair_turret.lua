@@ -15,6 +15,7 @@ end
 
 local script_data =
 {
+  turrets = {},
   turret_map = {},
   active_turrets = {},
   repair_check_queue = {},
@@ -66,14 +67,13 @@ local get_repair_items = function()
   return repair_items
 end
 
-local add_to_turret_map = function(turret, x, y)
+local add_to_turret_map = function(turret, s, x, y)
   local map = script_data.turret_map
-  local surface_index = turret.surface_index
 
-  local surface_map = map[surface_index]
+  local surface_map = map[s]
   if not surface_map then
     surface_map = {}
-    map[surface_index] = surface_map
+    map[s] = surface_map
   end
 
   local map_x = surface_map[x]
@@ -91,15 +91,27 @@ local add_to_turret_map = function(turret, x, y)
   turrets[turret.unit_number] = turret
 end
 
+local remove_from_turret_map = function(unit_number, s, x, y)
+  local map = script_data.turret_map
+  local surface_map = map[s]
+  if not surface_map then return end
+  local map_x = surface_map[x]
+  if not map_x then return end
+  local turrets = map_x[y]
+  if not turrets then return end
+  turrets[unit_number] = nil
+end
+
 local add_to_turret_update = function(turret)
-  local bucket_index = turret.unit_number % TURRET_UPDATE_INTERVAL
+  local unit_number = turret.unit_number
+  local bucket_index = unit_number % TURRET_UPDATE_INTERVAL
   local bucket = script_data.active_turrets[bucket_index]
   if not bucket then
     bucket = {}
     script_data.active_turrets[bucket_index] = bucket
   end
-  assert(not bucket[turret.unit_number])
-  bucket[turret.unit_number] = turret
+  assert(not bucket[unit_number])
+  bucket[unit_number] = turret
 end
 
 local remove_from_turret_update = function(unit_number)
@@ -137,21 +149,41 @@ RepairTurret.new = function(entity)
 end
 
 RepairTurret.post_setup = function(self)
+  script_data.turrets[self.unit_number] = self
   self:register_on_chunks()
   self:add_nearby_damaged_entities_to_repair_check_queue()
   self:add_nearby_ghost_entities_to_ghost_check_queue()
   self:add_nearby_entities_to_deconstruct_check_queue()
 end
 
+RepairTurret.on_destroyed = function(self)
+  self.entity = nil
+  self:unregister_from_chunks()
+  if self.active then
+    self:deactivate()
+  end
+  script_data.turrets[self.unit_number] = nil
+end
+
+RepairTurret.get_turret = function(unit_number)
+  return script_data.turrets[unit_number]
+end
+
 RepairTurret.register_on_chunks = function(self)
   for k, chunk_position in pairs (self:get_chunks_in_range()) do
-    add_to_turret_map(self, chunk_position[1], chunk_position[2])
+    add_to_turret_map(self, self.surface_index, chunk_position[1], chunk_position[2])
+  end
+end
+
+RepairTurret.unregister_from_chunks = function(self)
+  for k, chunk_position in pairs (self:get_chunks_in_range()) do
+    remove_from_turret_map(self.unit_number, self.surface_index, chunk_position[1], chunk_position[2])
   end
 end
 
 local CHUNK_SIZE = 32
 RepairTurret.get_chunks_in_range = function(self)
-  local position = self.entity.position
+  local position = self.position
   local range = self.range
   local chunks = {}
   local i = 1
@@ -373,7 +405,7 @@ RepairTurret.update = function(self)
   end
 
   for unit_number, target in pairs (self.targets) do
-    local result = self:check_target(target, unit_number)
+    local result = self:check_target(target)
     if result == result_enum.success then
       self.entity.energy = new_energy
       return
@@ -572,9 +604,9 @@ local get_owner_inventory = function(entity)
     return entity.get_inventory(defines.inventory.roboport_material)
   end
   if entity_type == "character" then
-    return owner.get_main_inventory()
+    return entity.get_main_inventory()
   end
-  return owner.get_output_inventory()
+  return entity.get_output_inventory()
 end
 
 RepairTurret.get_repair_stack_and_entity = function(self)
@@ -1081,6 +1113,14 @@ local on_marked_for_deconstruction = function(event)
   end
 end
 
+local entity_type = defines.target_type.entity
+local on_object_destroyed = function(event)
+  if event.type ~= entity_type then return end
+  local turret = RepairTurret.get_turret(event.unit_number)
+  if not turret then return end
+  turret:on_destroyed()
+end
+
 local lib = {}
 
 lib.events =
@@ -1100,6 +1140,8 @@ lib.events =
   [defines.events.script_raised_destroy] = on_entity_removed,
   [defines.events.on_player_mined_entity] = on_entity_removed,
   [defines.events.on_robot_mined_entity] = on_entity_removed,
+
+  [defines.events.on_object_destroyed] = on_object_destroyed,
 
   [defines.events.on_post_entity_died] = on_post_entity_died,
 
