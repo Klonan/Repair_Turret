@@ -277,9 +277,9 @@ local recipe =
   enabled = false,
   ingredients =
   {
-    {"iron-gear-wheel", 15},
-    {"electronic-circuit", 10},
-    {"steel-plate", 5}
+    {type = "item", name = "iron-gear-wheel", amount = 15},
+    {type = "item", name = "electronic-circuit", amount = 10},
+    {type = "item", name = "steel-plate", amount = 5}
   },
   energy_required = 10,
   results = {{type = "item", name = name, amount = 1}}

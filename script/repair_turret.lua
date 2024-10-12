@@ -59,7 +59,7 @@ local repair_items
 local get_repair_items = function()
   if repair_items then return repair_items end
   repair_items = {}
-  for name, item in pairs (game.item_prototypes) do
+  for name, item in pairs(prototypes.item) do
     if item.type == "repair-tool" and (item.speed and item.speed > 0) then
       repair_items[name] = true
     end
@@ -357,7 +357,7 @@ end
 local entity_needs_repair = function(entity)
   local health = entity.health
   if not health then return end
-  return health - entity.get_damage_to_be_taken() < entity.prototype.max_health
+  return health - entity.get_damage_to_be_taken() < entity.max_health
 end
 
 local result_enum =
@@ -1091,7 +1091,7 @@ end
 
 local update_non_repairable_entities = function()
   script_data.non_repairable_entities = {}
-  for name, entity in pairs (game.entity_prototypes) do
+  for name, entity in pairs(prototypes.entity) do
     if entity.has_flag("not-repairable") then
       script_data.non_repairable_entities[name] = true
     end
@@ -1152,13 +1152,13 @@ lib.events =
 }
 
 lib.on_init = function()
-  global.repair_turret = global.repair_turret or script_data
+  storage.repair_turret = storage.repair_turret or script_data
   pathfinding.cache = script_data.pathfinder_cache
   script_data.proxy_inventory = game.create_inventory(200)
 end
 
 lib.on_load = function()
-  script_data = global.repair_turret or script_data
+  script_data = storage.repair_turret or script_data
   pathfinding.cache = script_data.pathfinder_cache
   set_damaged_event_filter()
 end
