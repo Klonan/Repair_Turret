@@ -327,7 +327,6 @@ end
 
 RepairTurret.deactivate = function(self)
   assert(self.active)
-  game.print("Deactivated")
   self.active = false
   remove_from_turret_update(self.unit_number)
 end
@@ -1125,11 +1124,9 @@ end
 
 local entity_type = defines.target_type.entity
 local on_object_destroyed = function(event)
-  game.print("Destroyed")
   if event.type ~= entity_type then return end
   local turret = RepairTurret.get_turret(event.useful_id)
   if not turret then return end
-  game.print("Turret found")
   turret:on_destroyed()
 end
 
