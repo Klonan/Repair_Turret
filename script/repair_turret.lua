@@ -308,6 +308,7 @@ local get_unit_number = function(entity)
 end
 
 RepairTurret.add_target = function(self, entity)
+  if (self.entity == entity) then return end
   self.targets[get_unit_number(entity)] = entity
   self:activate()
 end
@@ -326,6 +327,7 @@ end
 
 RepairTurret.deactivate = function(self)
   assert(self.active)
+  game.print("Deactivated")
   self.active = false
   remove_from_turret_update(self.unit_number)
 end
@@ -398,6 +400,10 @@ end
 
 RepairTurret.update = function(self)
   --local profiler = game.create_profiler()
+  if not self.entity.valid then
+    self:on_destroyed()
+    return
+  end
 
   local new_energy = self:get_energy_to_update()
   if new_energy < 0 then
@@ -887,7 +893,11 @@ RepairTurret.deconstruct_entity = function(self, entity)
     end
     if count > 0 then
       stack.count = count
-      surface.spill_item_stack(position, stack, false, nil, false)
+      surface.spill_item_stack(
+      {
+        position = position,
+        stack = stack,
+        allow_belts = false})
     end
     stack.clear()
   end
@@ -1115,9 +1125,11 @@ end
 
 local entity_type = defines.target_type.entity
 local on_object_destroyed = function(event)
+  game.print("Destroyed")
   if event.type ~= entity_type then return end
-  local turret = RepairTurret.get_turret(event.unit_number)
+  local turret = RepairTurret.get_turret(event.useful_id)
   if not turret then return end
+  game.print("Turret found")
   turret:on_destroyed()
 end
 
