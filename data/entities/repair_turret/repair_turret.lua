@@ -6,83 +6,122 @@ local repair_range = require("shared").repair_range
 local attach_beam_graphics = require("data/entities/repair_turret/beam_sprites")
 
 local turret = util.copy(data.raw.roboport.roboport)
-util.recursive_hack_scale(turret, 0.5)
+
+local shift = function(current_shift)
+  return {current_shift[1], current_shift[2] - 1}
+end
 
 local path = util.path("data/entities/repair_turret/")
 
-local picture = {layers = {
-  {
-    filename = path.."repair_turret.png",
-    width = 330,
-    height = 261,
-    frame_count = 1,
-    direction_count = 1,
-    shift = {3/2, -1.8/2},
-    scale = 0.5
-  },
-  {
-    filename = path.."repair_turret_shadow.png",
-    width = 330,
-    height = 261,
-    frame_count = 1,
-    direction_count = 1,
-    shift = {3/2, -1.8/2},
-    scale = 0.5,
-    draw_as_shadow = true
-  },
-  {
-    filename = path.."repair_turret_mask.png",
-    flags = { "mask" },
-    line_length = 1,
-    width = 122,
-    height = 102,
-    axially_symmetrical = false,
-    direction_count = 1,
-    frame_count = 1,
-    shift = util.by_pixel(-4/2, -1/2),
-    tint = {g = 1, r = 0, b = 0, a = 0.5},
-    scale = 0.5
-    --apply_runtime_tint = true
-  },
-}}
+local picture = {
+  layers = {
+    {
+      filename = path .. "repair_turret.png",
+      width = 140,
+      height = 260,
+      frame_count = 1,
+      direction_count = 1,
+      shift = shift{0, 0},
+      scale = 0.5
+    },
+    {
+      filename = path .. "repair_turretglotint.png",
+      width = 120,
+      height = 120,
+      frame_count = 1,
+      direction_count = 1,
+      shift = shift(util.by_pixel(0, 10)),
+      scale = 0.5,
+      draw_as_glow = true,
+      tint = {g = 0.5, r = 0.9, b = 0, a = 0.5}
+    },
+    {
+      filename = path .. "repair_turretglo.png",
+      width = 120,
+      height = 120,
+      frame_count = 1,
+      direction_count = 1,
+      shift = shift(util.by_pixel(0, 10)),
+      scale = 0.5,
+      draw_as_glow = true
+    },
+    {
+      filename = path .. "repair_turretsh.png",
+      width = 530,
+      height = 92,
+      frame_count = 1,
+      direction_count = 1,
+      shift = shift(util.by_pixel(98, 48)),
+      scale = 0.5,
+      draw_as_shadow = true
+    },
+    {
+      filename = path .. "repair_turretmsk.png",
+      flags = {"mask"},
+      line_length = 1,
+      width = 120,
+      height = 120,
+      axially_symmetrical = false,
+      direction_count = 1,
+      frame_count = 1,
+      shift = shift(util.by_pixel(0, 15)),
+      tint = {g = 1, r = 0, b = 0, a = 0.5},
+      scale = 0.5
+      --apply_runtime_tint = true
+    },
+  }
+}
 
 local animation =
-{layers =
 {
-{
-  filename = "__base__/graphics/entity/roboport/roboport-base-animation.png",
-  priority = "medium",
-  width = 83,
-  height = 59,
-  frame_count = 8,
-  animation_speed = 0.4,
-  shift = {0, -2.5},
-  scale = 0.66,
-  run_mode = "backward"
-},
-{
-  filename = path.."repair_turret_shadow_animation.png",
-  width = 59,
-  height = 60,
-  animation_speed = 0.4,
-  line_length = 1,
-  frame_count = 8,
-  shift = {3.5, 0.1},
-  draw_as_shadow = true,
-  scale = 0.66,
-  run_mode = "backward"
-  --apply_runtime_tint = true
+  layers =
+  {
+    {
+      filename = path .. "turret.png",
+      priority = "medium",
+      width = 124,
+      height = 164,
+      line_length = 8,
+      frame_count = 8,
+      animation_speed = 0.4,
+      shift = shift(util.by_pixel(0, -63)),
+      scale = 0.5,
+    },
+    {
+      filename = path .. "turretglo.png",
+      priority = "medium",
+      width = 124,
+      height = 164,
+      line_length = 8,
+      frame_count = 8,
+      animation_speed = 0.4,
+      shift = shift(util.by_pixel(0, -63)),
+      scale = 0.5,
+      draw_as_glow = true,
+    },
+    {
+      filename = path .. "turretsh.png",
+      width = 202,
+      height = 92,
+      animation_speed = 0.4,
+      line_length = 8,
+      frame_count = 8,
+      shift = shift(util.by_pixel(164, 48)),
+      draw_as_shadow = true,
+      scale = 0.5,
+      --apply_runtime_tint = true
+    }
+  }
 }
-}}
 
 turret.name = name
 turret.localised_name = {name}
 turret.localised_description = {name.."-description"}
-turret.icon = path.."repair_turret_icon.png"
-turret.icon_size = 182
+turret.icon = path .. "repairturret64.png"
+turret.icon_size = 64
 turret.icon_mipmaps = 0
 turret.logistics_radius = 2
-turret.logistics_connection_distance = 32
+turret.logistics_connection_distance = 16
 turret.construction_radius = 32
 turret.radar_range = 2
 turret.robot_slots_count = 0
@@ -173,8 +212,8 @@ local technology =
   name = name,
   localised_name = {name},
   type = "technology",
-  icon = turret.icon,
-  icon_size = turret.icon_size,
+  icon = path .. "repairturret256.png",
+  icon_size = 256,
   effects =
   {
     {
@@ -202,8 +241,8 @@ local can_construct_technology =
   name = "repair-turret-construction",
   localised_name = {"repair-turret-construction"},
   type = "technology",
-  icon = turret.icon,
-  icon_size = turret.icon_size,
+  icon = path .. "repairturret256.png",
+  icon_size = 256,
   effects =
   {
     {
@@ -399,8 +438,8 @@ local power_technologies =
     name = "repair-turret-power-"..n(),
     localised_name = {"repair-turret-power"},
     type = "technology",
-    icon = turret.icon,
-    icon_size = turret.icon_size,
+    icon = path .. "repairturret256.png",
+    icon_size = 256,
     upgrade = true,
     effects =
     {
@@ -427,8 +466,8 @@ local power_technologies =
     name = "repair-turret-power-"..n(),
     localised_name = {"repair-turret-power"},
     type = "technology",
-    icon = turret.icon,
-    icon_size = turret.icon_size,
+    icon = path .. "repairturret256.png",
+    icon_size = 256,
     upgrade = true,
     effects =
     {
@@ -455,8 +494,8 @@ local power_technologies =
     name = "repair-turret-power-"..n(),
     localised_name = {"repair-turret-power"},
     type = "technology",
-    icon = turret.icon,
-    icon_size = turret.icon_size,
+    icon = path .. "repairturret256.png",
+    icon_size = 256,
     upgrade = true,
     effects =
     {
@@ -491,8 +530,8 @@ local efficiency_technologies =
     name = "repair-turret-efficiency-"..n(),
     localised_name = {"repair-turret-efficiency"},
     type = "technology",
-    icon = turret.icon,
-    icon_size = turret.icon_size,
+    icon = path .. "repairturret256.png",
+    icon_size = 256,
     upgrade = true,
     effects =
     {
@@ -518,8 +557,8 @@ local efficiency_technologies =
     name = "repair-turret-efficiency-"..n(),
     localised_name = {"repair-turret-efficiency"},
     type = "technology",
-    icon = turret.icon,
-    icon_size = turret.icon_size,
+    icon = path .. "repairturret256.png",
+    icon_size = 256,
     upgrade = true,
     effects =
     {
@@ -546,8 +585,8 @@ local efficiency_technologies =
     name = "repair-turret-efficiency-"..n(),
     localised_name = {"repair-turret-efficiency"},
     type = "technology",
-    icon = turret.icon,
-    icon_size = turret.icon_size,
+    icon = path .. "repairturret256.png",
+    icon_size = 256,
     upgrade = true,
     effects =
     {
