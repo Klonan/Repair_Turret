@@ -1,13 +1,21 @@
 local util = require("util")
 local pathfinding = require("pathfinding")
-local turret_update_interval = 31
+local TURRET_UPDATE_INTERVAL = 31
 local moving_entity_check_interval = 301
 local energy_per_heal = 100000
-local turret_name = require("shared").entities.repair_turret
-local repair_range = require("shared").repair_range
+
+local turret_names =
+{
+  [require("shared").entities.repair_turret] = true
+}
+
+local is_turret = function(name)
+  return turret_names[name]
+end
 
 local script_data =
 {
+  turrets = {},
   turret_map = {},
   active_turrets = {},
   repair_check_queue = {},
@@ -51,12 +59,141 @@ local repair_items
 local get_repair_items = function()
   if repair_items then return repair_items end
   repair_items = {}
-  for name, item in pairs (game.item_prototypes) do
+  for name, item in pairs(prototypes.item) do
     if item.type == "repair-tool" and (item.speed and item.speed > 0) then
       repair_items[name] = true
     end
   end
   return repair_items
+end
+
+local add_to_turret_map = function(turret, s, x, y)
+  local map = script_data.turret_map
+
+  local surface_map = map[s]
+  if not surface_map then
+    surface_map = {}
+    map[s] = surface_map
+  end
+
+  local map_x = surface_map[x]
+  if not map_x then
+    map_x = {}
+    surface_map[x] = map_x
+  end
+
+  local turrets = map_x[y]
+  if not turrets then
+    turrets = {}
+    map_x[y] = turrets
+  end
+
+  turrets[turret.unit_number] = turret
+end
+
+local remove_from_turret_map = function(unit_number, s, x, y)
+  local map = script_data.turret_map
+  local surface_map = map[s]
+  if not surface_map then return end
+  local map_x = surface_map[x]
+  if not map_x then return end
+  local turrets = map_x[y]
+  if not turrets then return end
+  turrets[unit_number] = nil
+end
+
+local add_to_turret_update = function(turret)
+  local unit_number = turret.unit_number
+  local bucket_index = unit_number % TURRET_UPDATE_INTERVAL
+  local bucket = script_data.active_turrets[bucket_index]
+  if not bucket then
+    bucket = {}
+    script_data.active_turrets[bucket_index] = bucket
+  end
+  assert(not bucket[unit_number])
+  bucket[unit_number] = turret
+end
+
+local remove_from_turret_update = function(unit_number)
+  local bucket_index = unit_number % TURRET_UPDATE_INTERVAL
+  local bucket = script_data.active_turrets[bucket_index]
+  if not bucket then return end
+  bucket[unit_number] = nil
+  if not next(bucket) then
+    script_data.active_turrets[bucket_index] = nil
+  end
+end
+
+local RepairTurret = {}
+RepairTurret.metatable =
+{
+  __index = RepairTurret
+}
+script.register_metatable("repair-turret", RepairTurret.metatable)
+
+RepairTurret.new = function(entity)
+  script.register_on_object_destroyed(entity)
+
+  local self = setmetatable({}, RepairTurret.metatable)
+  self.entity = entity
+  self.range = entity.prototype.construction_radius
+  self.unit_number = entity.unit_number
+  self.surface_index = entity.surface.index
+  self.position = entity.position
+  self.force_index = entity.force.index
+  self.targets = {}
+  self.low_priority_queue = {}
+  self.inventory = self.entity.get_inventory(defines.inventory.roboport_material)
+
+  self:post_setup()
+end
+
+RepairTurret.post_setup = function(self)
+  script_data.turrets[self.unit_number] = self
+  self:register_on_chunks()
+  self:add_nearby_damaged_entities_to_repair_check_queue()
+  self:add_nearby_ghost_entities_to_ghost_check_queue()
+  self:add_nearby_entities_to_deconstruct_check_queue()
+end
+
+RepairTurret.on_destroyed = function(self)
+  self.entity = nil
+  self:unregister_from_chunks()
+  if self.active then
+    self:deactivate()
+  end
+  script_data.turrets[self.unit_number] = nil
+end
+
+RepairTurret.get_turret = function(unit_number)
+  return script_data.turrets[unit_number]
+end
+
+RepairTurret.register_on_chunks = function(self)
+  for k, chunk_position in pairs (self:get_chunks_in_range()) do
+    add_to_turret_map(self, self.surface_index, chunk_position[1], chunk_position[2])
+  end
+end
+
+RepairTurret.unregister_from_chunks = function(self)
+  for k, chunk_position in pairs (self:get_chunks_in_range()) do
+    remove_from_turret_map(self.unit_number, self.surface_index, chunk_position[1], chunk_position[2])
+  end
+end
+
+local CHUNK_SIZE = 32
+RepairTurret.get_chunks_in_range = function(self)
+  local position = self.position
+  local range = self.range
+  local chunks = {}
+  local i = 1
+  for x = math.floor((position.x - range) / CHUNK_SIZE), math.floor((position.x + range) / CHUNK_SIZE) do
+    for y = math.floor((position.y - range) / CHUNK_SIZE), math.floor((position.y + range) / CHUNK_SIZE) do
+      chunks[i] = {x, y}
+      i = i + 1
+    end
+  end
+  return chunks
 end
 
 local on_player_created = function(event)
@@ -101,46 +238,33 @@ local add_to_repair_check_queue = function(entity)
 
 end
 
-local map_resolution = repair_range
 local floor = math.floor
 
-local to_map_position = function(position)
-  local x = floor(position.x / map_resolution)
-  local y = floor(position.y / map_resolution)
+local to_chunk_position = function(position)
+  local x = floor(position.x / CHUNK_SIZE)
+  local y = floor(position.y / CHUNK_SIZE)
   return x, y
 end
 
-local add_to_turret_map = function(turret)
-  local x, y = to_map_position(turret.position)
-  local map = script_data.turret_map
-  if not map[x] then
-    map[x] = {}
-  end
-
-  if not map[x][y] then
-    map[x][y] = {}
-  end
-
-  map[x][y][turret.unit_number] = turret
-
-end
-
-local get_turrets_in_map = function(x, y)
+local get_turrets_in_map = function(s, x, y)
   --game.print("HI"..x..y)
   local map = script_data.turret_map
-  local map_x = map[x]
-  local turrets = map_x and map_x[y]
-  --game.print(serpent.line(turrets))
-  return turrets
+  local surface_map = map[s]
+  if not surface_map then return end
+  local map_x = surface_map[x]
+  if not map_x then return end
+  --local turrets = map_x[y]
+  --if not turrets then return end
+  return map_x[y]
 end
 
-local get_beam_multiple = function(force)
-  return script_data.beam_multiple[force.index] or 1
+local get_beam_multiple = function(force_index)
+  return script_data.beam_multiple[force_index] or 1
 end
 
-local get_needed_energy = function(force)
-  local base = energy_per_heal * turret_update_interval
-  local modifier = script_data.beam_efficiency[force.index] or 1
+local get_needed_energy = function(force_index)
+  local base = energy_per_heal * TURRET_UPDATE_INTERVAL
+  local modifier = script_data.beam_efficiency[force_index] or 1
   return base * modifier
 end
 
@@ -152,53 +276,184 @@ local has_repair_item = function(network)
 end
 
 local abs = math.abs
-local find_nearby_turrets = function(entity, for_deconstruction)
+RepairTurret.is_in_range = function(self, position)
+  return (abs(position.x - self.position.x) <= self.range) and (abs(position.y - self.position.y) <= self.range)
+end
 
-  local turrets = {}
-  local radius = 1
-  local position = entity.position
-  local force = entity.force
-  local surface = entity.surface
+local NEUTRAL_FORCE_INDEX = 3
+RepairTurret.can_do_stuff_to_force = function(self, force_index, for_deconstruction)
+  if for_deconstruction and force_index == NEUTRAL_FORCE_INDEX then
+    return true
+  end
+  return self.force_index == force_index
+end
 
-  local is_in_range = function(turret_position)
-    return abs(position.x - turret_position.x) <= repair_range and abs(position.y - turret_position.y) <= repair_range
+RepairTurret.is_valid_for_entity = function(self, entity_position, force_index, for_deconstruction)
+  assert(self.entity.valid)
+  if not self:can_do_stuff_to_force(force_index, for_deconstruction) then
+    return false
+  end
+  if not self:is_in_range(entity_position) then
+    return false
+  end
+  return true
+end
+
+local get_unit_number = function(entity)
+  local unit_number = entity.unit_number
+  if not unit_number then
+    unit_number = entity.position.x.."-"..entity.position.y
+  end
+  return unit_number
+end
+
+RepairTurret.add_target = function(self, entity)
+  if (self.entity == entity) then return end
+  self.targets[get_unit_number(entity)] = entity
+  self:activate()
+end
+
+RepairTurret.move_target_to_low_priority = function(self, entity)
+  local unit_number = get_unit_number(entity)
+  self.targets[unit_number] = nil
+  self.low_priority_queue[unit_number] = entity
+end
+
+RepairTurret.activate = function(self)
+  if self.active then return end
+  self.active = true
+  add_to_turret_update(self)
+end
+
+RepairTurret.deactivate = function(self)
+  assert(self.active)
+  self.active = false
+  remove_from_turret_update(self.unit_number)
+end
+
+RepairTurret.get_energy_to_update = function(self)
+  return self.entity.energy - get_needed_energy(self.force_index)
+end
+
+RepairTurret.can_build = function(self)
+  return script_data.can_construct[self.force_index]
+end
+
+RepairTurret.check_deactivate = function(self)
+  if next(self.targets) then
+    return
+  end
+  if next(self.low_priority_queue) then
+    return
+  end
+  self:deactivate()
+end
+
+RepairTurret.check_queue_swap = function(self)
+  if not next(self.targets) and next(self.low_priority_queue) then
+    self.targets, self.low_priority_queue = self.low_priority_queue, self.targets
+  end
+end
+
+local entity_needs_repair = function(entity)
+  local health = entity.health
+  if not health then return end
+  return health - entity.get_damage_to_be_taken() < entity.max_health
+end
+
+local result_enum =
+{
+  success = 1,
+  fail = 2,
+  low_priority = 3
+}
+RepairTurret.check_target = function(self, entity)
+
+  if not entity.valid then
+    return result_enum.fail
   end
 
-  local check_turret = function(unit_number, turret)
-    if
-      turret ~= entity and
-      (turret.force == force or turret.force.get_friend(force) or (for_deconstruction and force.name == "neutral")) and
-      turret.surface == surface and
-      is_in_range(turret.position)
-    then
-      turrets[unit_number] = turret
+  if ghost_names[entity.name] then
+    if self:try_build_ghost(entity) then
+      return result_enum.success
+    end
+    return self:can_build() and result_enum.low_priority or result_enum.fail
+  end
+
+  if entity.to_be_deconstructed() then
+    if self:deconstruct_entity(entity) then
+      return result_enum.success
+    end
+    return self:can_build() and result_enum.low_priority or result_enum.fail
+  end
+
+  if (entity_needs_repair(entity)) then
+    if self:repair_entity(entity) then
+      return result_enum.success
+    end
+    return result_enum.low_priority
+  end
+
+  return result_enum.fail
+end
+
+RepairTurret.update = function(self)
+  --local profiler = game.create_profiler()
+  if not self.entity.valid then
+    self:on_destroyed()
+    return
+  end
+
+  local new_energy = self:get_energy_to_update()
+  if new_energy < 0 then
+    return
+  end
+
+  for unit_number, target in pairs (self.targets) do
+    local result = self:check_target(target)
+    if result == result_enum.success then
+      self.entity.energy = new_energy
+      return
+    elseif result == result_enum.low_priority then
+      self:move_target_to_low_priority(target)
+    else -- fail
+      self.targets[unit_number] = nil
     end
   end
 
-  local x, y = to_map_position(position)
+  self:check_queue_swap()
+  self:check_deactivate()
 
-  for X = x - radius, x + radius do
-    for Y = y - radius, y + radius do
-      local turrets = get_turrets_in_map(X, Y)
-      if turrets then
-        for unit_number, turret in pairs (turrets) do
-          if not turret.valid then
-            turrets[unit_number] = nil
-          else
-            check_turret(unit_number, turret)
-          end
-        end
+end
+
+local find_nearby_turrets = function(entity, for_deconstruction)
+
+  local result_turrets = {}
+  local position = entity.position
+  local force_index = entity.force.index
+  local surface_index = entity.surface.index
+
+  local x, y = to_chunk_position(position)
+
+  local turrets = get_turrets_in_map(surface_index, x, y)
+  if turrets then
+    for unit_number, turret in pairs (turrets) do
+      if turret:is_valid_for_entity(position, force_index, for_deconstruction) then
+        result_turrets[unit_number] = turret
       end
     end
   end
 
-  return turrets
+  return result_turrets
 end
 
-local add_nearby_damaged_entities_to_repair_check_queue = function(entity)
-  local position = entity.position
-  local area = {{position.x - repair_range, position.y - repair_range}, {position.x + repair_range, position.y + repair_range}}
-  for k, entity in pairs (entity.surface.find_entities_filtered{area = area}) do
+RepairTurret.get_range_area = function(self)
+  local position = self.position
+  return {{position.x - self.range, position.y - self.range}, {position.x + self.range, position.y + self.range}}
+end
+
+RepairTurret.add_nearby_damaged_entities_to_repair_check_queue = function(self)
+  for k, entity in pairs (self.entity.surface.find_entities_filtered{area = self:get_range_area()}) do
     if entity.unit_number and (entity.get_health_ratio() or 1) < 1 then
       add_to_repair_check_queue(entity)
     end
@@ -206,22 +461,18 @@ local add_nearby_damaged_entities_to_repair_check_queue = function(entity)
 end
 
 local ghost_check_names = {"entity-ghost", "tile-ghost"}
-local add_nearby_ghost_entities_to_ghost_check_queue = function(entity)
-  local position = entity.position
+RepairTurret.add_nearby_ghost_entities_to_ghost_check_queue = function(self)
   local ghost_check_queue = script_data.ghost_check_queue
-  local area = {{position.x - repair_range, position.y - repair_range}, {position.x + repair_range, position.y + repair_range}}
-  for k, entity in pairs (entity.surface.find_entities_filtered{area = area, name = ghost_check_names}) do
-    ghost_check_queue[entity.unit_number] = entity
+  for k, entity in pairs(self.entity.surface.find_entities_filtered {area = self:get_range_area(), name = ghost_check_names}) do
+    ghost_check_queue[get_unit_number(entity)] = entity
   end
 end
 
 local insert = table.insert
-local add_nearby_entities_to_deconstruct_check_queue = function(entity)
-  local position = entity.position
+RepairTurret.add_nearby_entities_to_deconstruct_check_queue = function(self)
   local deconstruct_check_queue = script_data.deconstruct_check_queue
-  local area = {{position.x - repair_range, position.y - repair_range}, {position.x + repair_range, position.y + repair_range}}
-  for k, entity in pairs (entity.surface.find_entities_filtered{area = area, to_be_deconstructed = true}) do
-    insert(deconstruct_check_queue, entity)
+  for k, entity in pairs(self.entity.surface.find_entities_filtered {area = self:get_range_area(), to_be_deconstructed = true}) do
+    deconstruct_check_queue[get_unit_number(entity)] = entity
   end
 end
 
@@ -229,7 +480,7 @@ local entity_ghost_built = function(entity)
   script_data.ghost_check_queue[entity.unit_number] = entity
   local decons = entity.surface.find_entities_filtered{area = entity.bounding_box, to_be_deconstructed = true}
   for k, decon in pairs (decons) do
-    insert(script_data.deconstruct_check_queue, decon)
+    script_data.deconstruct_check_queue[get_unit_number(decon)] = decon
   end
 end
 
@@ -244,11 +495,8 @@ local on_created_entity = function(event)
     return
   end
 
-  if name == turret_name then
-    add_to_turret_map(entity)
-    add_nearby_damaged_entities_to_repair_check_queue(entity)
-    add_nearby_ghost_entities_to_ghost_check_queue(entity)
-    add_nearby_entities_to_deconstruct_check_queue(entity)
+  if is_turret(name) then
+    RepairTurret.new(entity)
   end
 
   if entity.logistic_cell then
@@ -261,22 +509,13 @@ local on_created_entity = function(event)
 
 end
 
-local insert = table.insert
-local max = math.max
-local min = math.min
-local abs = math.abs
-local ceil = math.ceil
-
-local juggle = function(number, amount)
-  return number + ((math.random() + 0.5) * amount)
-end
-local max_duration = turret_update_interval * 8
+local max_duration = TURRET_UPDATE_INTERVAL * 8
 
 local highlight_path = function(source, path, beam_name)
 
   --local profiler = game.create_profiler()
 
-  local current_duration = turret_update_interval
+  local current_duration = TURRET_UPDATE_INTERVAL
 
   local surface = source.surface
   local create_entity = surface.create_entity
@@ -354,50 +593,45 @@ local highlight_path = function(source, path, beam_name)
 
 end
 
-local get_pickup_entity = function(turret)
-
-  local inventory = turret.get_inventory(defines.inventory.roboport_material)
-  if not inventory.is_empty() then
-    return turret, inventory[1]
-  end
-
-  local position = turret.position
-  local turret_cell = turret.logistic_cell
-  local logistic_network = turret_cell.logistic_network
-  if not logistic_network then return end
-
-  local select_pickup_point = logistic_network.select_pickup_point
-  local pickup_point
-  local repair_item
+RepairTurret.get_repair_pickup_point = function(self)
+  local select_pickup_point = self.entity.logistic_network.select_pickup_point
   for name, item in pairs(get_repair_items()) do
-    pickup_point = select_pickup_point{name = name, position = position, include_buffers = true}
-    repair_item = name
-    if pickup_point then break end
+    local pickup_point = select_pickup_point {name = name, position = self.position, include_buffers = true}
+    if pickup_point then
+      return pickup_point.owner, name
+    end
+  end
+end
+
+local get_owner_inventory = function(entity)
+  local entity_type = entity.type
+  if entity_type == "roboport" then
+    return entity.get_inventory(defines.inventory.roboport_material)
+  end
+  if entity_type == "character" then
+    return entity.get_main_inventory()
+  end
+  return entity.get_output_inventory()
+end
+
+RepairTurret.get_repair_stack_and_entity = function(self)
+
+  local inventory = self.inventory
+  if not inventory.is_empty() then
+    return self.entity, inventory[1]
   end
 
-  if not pickup_point then return end
+  local owner, repair_item = self:get_repair_pickup_point()
+  if not owner then return end
 
-  local owner = pickup_point.owner
-  local inventory
-  local owner_type = owner.type
-  if owner_type == "roboport" then
-    inventory = owner.get_inventory(defines.inventory.roboport_material)
-  elseif owner_type == "character" then
-    inventory = owner.get_main_inventory()
-  else
-    inventory = owner.get_output_inventory()
-  end
+  local owner_inventory = get_owner_inventory(owner)
 
-  local stack = inventory and inventory.find_item_stack(repair_item)
+  local stack = owner_inventory and owner_inventory.find_item_stack(repair_item)
 
   if not (stack and stack.valid and stack.valid_for_read) then return end
 
   return owner, stack
 
-end
-
-local is_in_range = function(turret_position, position)
-  return abs(position.x - turret_position.x) <= repair_range and abs(position.y - turret_position.y) <= repair_range
 end
 
 local make_path = function(target_entity, source_cell, beam_name)
@@ -411,59 +645,30 @@ local make_path = function(target_entity, source_cell, beam_name)
 
 end
 
-local get_repair_target = function(entities, position)
+RepairTurret.repair_entity = function(self, entity)
 
-  local lowest
-  local lowest_health = math.huge
-
-  for k, entity in pairs (entities) do
-    local health = entity.health
-    if health then
-      health = health - entity.get_damage_to_be_taken()
-      if (health < lowest_health) and not (health >= entity.prototype.max_health or (can_move(entity) and not is_in_range(position, entity.position))) then
-        lowest = entity
-        lowest_health = health
-      end
-    end
+  local pickup_entity, stack = self:get_repair_stack_and_entity()
+  if not (pickup_entity and pickup_entity.valid) then
+    return
   end
 
-  return lowest
-end
-
-local repair_entity = function(turret_data, turret, entity)
-
-  local force = turret.force
-
-  local pickup_entity, stack = turret_data.pickup_entity, turret_data.stack
-
-  if not (pickup_entity and pickup_entity.valid and stack.valid and stack.valid_for_read and stack.is_repair_tool) then
-    pickup_entity, stack = get_pickup_entity(turret)
-
-    if not pickup_entity then
-      return
-    end
-
-    turret_data.pickup_entity = pickup_entity
-    turret_data.stack = stack
-
+  if not (stack and stack.valid and stack.valid_for_read and stack.is_repair_tool) then
+    return
   end
 
-  local position = turret.position
-  local target_position = entity.position
-
-  if pickup_entity ~= turret then
-    make_path(pickup_entity, turret.logistic_cell, "repair-beam")
+  if pickup_entity ~= self.entity then
+    make_path(pickup_entity, self.entity.logistic_cell, "repair-beam")
   end
 
-  stack.drain_durability(turret_update_interval / stack.prototype.speed)
+  stack.drain_durability(TURRET_UPDATE_INTERVAL / stack.prototype.speed)
 
   local speed = 1 / 2
 
-  local source_position = {position.x, position.y - 2.5}
-  local surface = turret.surface
+  local source_position = {self.position.x, self.position.y - 2.5}
+  local surface = entity.surface
   local create_entity = surface.create_entity
 
-  for k = 1, get_beam_multiple(turret.force) do
+  for k = 1, get_beam_multiple(self.force_index) do
     local rocket = create_entity
     {
       name = "repair-bullet",
@@ -471,7 +676,7 @@ local repair_entity = function(turret_data, turret, entity)
       position = source_position,
       target = entity,
       force = force,
-      max_range = repair_range * 2
+      max_range = self.range * 2
     }
     speed = speed / 0.8
     create_entity
@@ -479,7 +684,7 @@ local repair_entity = function(turret_data, turret, entity)
       name = "repair-beam",
       target_position = source_position,
       source = rocket,
-      position = position,
+      position = self.position,
       force = force
     }
   end
@@ -503,93 +708,51 @@ local get_items_to_place = function(ghost)
 
 end
 
-local get_construction_target = function(entities, turret, turret_data)
+local mineable_products_cache = {}
+local get_mineable_products = function(entity)
 
-  local network = turret.logistic_network
-  --if not next(network.provider_points) then return end
+  local name = entity.name
+  local products = mineable_products_cache[name]
+  if products then return products end
 
-  local contents = network.get_contents()
-  if not next(contents) then return end
+  local prototype = entity.prototype
+  products = prototype.mineable_properties.products or {}
+  mineable_products_cache[name] = products
+  for k, product in pairs (products) do
+    product.count = product.amount_max or product.amount or 1
+  end
 
-  --turret.surface.create_entity{name = "flying-text", position = turret.position, text = table_size(entities)}
+  return products
 
-  local get_item = function(ghost)
-    for k, item in pairs (get_items_to_place(ghost)) do
-      if (contents[item.name] or 0) >= item.count then
-        return item
-      end
+end
+
+local can_revive = function(ghost)
+  if ghost.name == "tile-ghost" then return true end
+  return ghost.surface.can_place_entity
+        {
+          name = ghost.ghost_name,
+          position = ghost.position,
+          direction = ghost.direction,
+          force = ghost.force,
+          build_check_type = defines.build_check_type.ghost_revive
+        }
+end
+
+local get_item_to_place_in_network = function(ghost, get_item_count)
+  for k, item in pairs (get_items_to_place(ghost)) do
+    if (get_item_count(item)) >= item.count then
+      return item
     end
   end
+end
 
-  local surface = turret.surface
-  local can_place = surface.can_place_entity
-  local can_build = function(ghost)
-    if ghost.name == "tile-ghost" then return true end
-    return can_place
-    {
-      name = ghost.ghost_name,
-      position = ghost.position,
-      direction = ghost.direction,
-      force = ghost.force,
-      build_check_type = defines.build_check_type.ghost_revive
-    }
-  end
+RepairTurret.can_build_ghost = function(self, ghost)
 
-  local items = {}
-  local ghosts = {}
-
-  local low_priority_queue = turret_data.low_priority_queue
-  if not low_priority_queue then
-    low_priority_queue = {}
-    turret_data.low_priority_queue = low_priority_queue
-  end
-
-  for k, entity in pairs (entities) do
-    if entity.valid and ghost_names[entity.name] then
-      local item = get_item(entity)
-      if item and can_build(entity) then
-        items[k] = item
-        ghosts[k] = entity
-      else
-        low_priority_queue[k] = entity
-        entities[k] = nil
-      end
-    end
-  end
-
-  local closest = surface.get_closest(turret.position, ghosts)
-  if closest then
-    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Close"}
-    return closest, items[closest.unit_number]
-  end
-
-  local checked_queue = turret_data.checked_queue
-  if not checked_queue then
-    checked_queue = {}
-    turret_data.checked_queue = checked_queue
-  end
-
-  if not next(low_priority_queue) then
-    turret_data.low_priority_queue = checked_queue
-    low_priority_queue = checked_queue
-    checked_queue = {}
-    turret_data.checked_queue = checked_queue
-
-    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Queue swap"}
-  end
-
-  local index, entity = next(low_priority_queue)
-
-  if entity then
-    low_priority_queue[index] = nil
-    if entity.valid then
-      --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
-      local item = get_item(entity)
-      if item and can_build(entity) then
-        return entity, item
-      else
-        checked_queue[index] = entity
-      end
+  local get_item_count = self.entity.logistic_network.get_item_count
+  if can_revive(ghost) then
+    local item = get_item_to_place_in_network(ghost, get_item_count)
+    if item then
+      return item
     end
   end
 
@@ -597,12 +760,18 @@ end
 
 local revive_param = {raise_revive = true}
 
-local build_entity = function(turret, ghost, item)
-  local network = turret.logistic_network
+RepairTurret.try_build_ghost = function(self, ghost)
+
+  if not self:can_build() then return end
+
+  local build_item = self:can_build_ghost(ghost)
+  if not build_item then return end
+
+  local network = self.entity.logistic_network
   local point = network.select_pickup_point
   {
-    name = item.name,
-    position = turret.position,
+    name = build_item.name,
+    position = self.position,
     include_buffers = true
   }
   if not point then return end
@@ -620,16 +789,16 @@ local build_entity = function(turret, ghost, item)
     end
   end
 
-  if pickup_entity ~= turret then
-    make_path(pickup_entity, turret.logistic_cell, "construct-beam")
+  if pickup_entity ~= self.entity then
+    make_path(pickup_entity, self.entity.logistic_cell, "construct-beam")
   end
 
-  pickup_entity.remove_item(item)
+  pickup_entity.remove_item(build_item)
 
-  local position = turret.position
+  local position = self.position
   local source_position = {position.x, position.y - 2.5}
 
-  turret.surface.create_entity
+  self.entity.surface.create_entity
   {
     name = "construct-beam",
     source_position = source_position,
@@ -637,36 +806,18 @@ local build_entity = function(turret, ghost, item)
     target_position = target_position,
     position = position,
     force = force,
-    duration = turret_update_interval
+    duration = TURRET_UPDATE_INTERVAL
   }
 
   return true
 
 end
 
-local get_deconstruction_target = function(entities, turret)
-
-  local available = {}
-  if not next(turret.logistic_network.storage_points) then return end
-
-  for k, entity in pairs (entities) do
-    if entity.valid and entity.to_be_deconstructed() and entity.can_be_destroyed() then
-      available[k] = entity
-    end
-  end
-
-  return turret.surface.get_closest(turret.position, available)
-
-end
-
-local random = math.random
-local destroy_params = {raise_destroy = true}
-local deconstruct_entity = function(turret, entity)
-
-  local inventory = script_data.proxy_inventory
+RepairTurret.deconstruct_entity = function(self, entity)
+  if not self:can_build() then return end
+  if not entity.can_be_destroyed() then return end
+  local network = self.entity.logistic_network
   local position = entity.position
-  local force = entity.force
-  local name = entity.name
   local surface = entity.surface
   local tiles
 
@@ -678,19 +829,30 @@ local deconstruct_entity = function(turret, entity)
         {name = tile_name, position = position}
       }
     end
+    -- todo check we can like the check below
+  else
+    for k, product in pairs (get_mineable_products(entity)) do
+      if not network.select_drop_point{stack = product, "storage"} then
+        return
+      end
+    end
   end
 
+  local inventory = script_data.proxy_inventory
   local success = entity.mine
   {
     inventory = inventory
   }
   if not success then return end
 
+  local cell = self.entity.logistic_cell
+  local force = self.entity.force
+
   if tiles then
     surface.set_tiles(tiles)
   end
 
-  local source_position = {turret.position.x, turret.position.y - 2.5}
+  local source_position = {self.position.x, self.position.y - 2.5}
 
   local rocket = surface.create_entity
   {
@@ -699,7 +861,7 @@ local deconstruct_entity = function(turret, entity)
     position = position,
     target = source_position,
     force = force,
-    max_range = repair_range * 2
+    max_range = self.range * 2
   }
   surface.create_entity
   {
@@ -710,12 +872,7 @@ local deconstruct_entity = function(turret, entity)
     force = force
   }
 
-  local network = turret.logistic_network
-  local cell = turret.logistic_cell
-
   local made_beam = false
-
-  inventory.sort_and_merge()
 
   for stack_index = 1, #inventory do
     local stack = inventory[stack_index]
@@ -735,7 +892,11 @@ local deconstruct_entity = function(turret, entity)
     end
     if count > 0 then
       stack.count = count
-      surface.spill_item_stack(position, stack, false, nil, false)
+      surface.spill_item_stack(
+      {
+        position = position,
+        stack = stack,
+        allow_belts = false})
     end
     stack.clear()
   end
@@ -744,76 +905,6 @@ local deconstruct_entity = function(turret, entity)
 
 end
 
-local validate_targets = function(entities, surface)
-  for k, entity in pairs (entities) do
-    if not (entity.valid and (entity.surface == surface) and (entity.to_be_deconstructed() or ((entity.get_health_ratio() or 0) < 1) or ghost_names[entity.name])) then
-      entities[k] = nil
-    end
-  end
-  return entities
-end
-
-local can_construct = function(force)
-  return script_data.can_construct[force.name]
-end
-
-local update_turret = function(turret_data)
-  --local profiler = game.create_profiler()
-  local turret = turret_data.turret
-  if not (turret and turret.valid) then return true end
-
-  new_energy = turret.energy - get_needed_energy(turret.force)
-  if new_energy < 0 then
-    return
-  end
-
-  local targets = validate_targets(turret_data.targets, turret.surface)
-
-  local force = turret.force
-
-
-  if can_construct(force) then
-
-    local ghost, item = get_construction_target(targets, turret, turret_data)
-    if ghost then
-      if build_entity(turret, ghost, item) then
-        turret.energy = new_energy
-        return
-      end
-    end
-
-    local entity = get_deconstruction_target(targets, turret)
-    if entity then
-      if deconstruct_entity(turret, entity) then
-        turret.energy = new_energy
-        return
-      end
-    end
-
-  end
-
-  local entity = get_repair_target(targets, turret.position)
-  if entity then
-    if repair_entity(turret_data, turret, entity) then
-      turret.energy = new_energy
-      return
-    end
-  end
-
-  if turret_data.targets and next(turret_data.targets) then
-    return
-  end
-
-  if turret_data.low_priority_queue and next(turret_data.low_priority_queue) then
-    return
-  end
-
-  if turret_data.checked_queue and next(turret_data.checked_queue) then
-    return
-  end
-
-  return true
-end
 
 local check_repair = function(unit_number, entity)
   if not (entity and entity.valid) then return true end
@@ -822,24 +913,9 @@ local check_repair = function(unit_number, entity)
 
   --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
 
-  local active_turrets = script_data.active_turrets
-  local turrets = find_nearby_turrets(entity)
-
-  for turret_unit_number, turret in pairs (turrets) do
-    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Added to list"}
-    local turret_data = active_turrets[turret_unit_number]
-    if turret_data then
-      turret_data.targets[unit_number] = entity
-    else
-      turret_data =
-      {
-        turret = turret,
-        targets = {[unit_number] = entity}
-      }
-      active_turrets[turret_unit_number] = turret_data
-    end
+  for turret_unit_number, turret in pairs(find_nearby_turrets(entity)) do
+    turret:add_target(entity)
   end
-
 end
 
 local repair_check_count = 5
@@ -878,42 +954,22 @@ local check_moving_entity_repair = function(event)
 end
 
 local check_turret_update = function(event)
-
   local active_turrets = script_data.active_turrets
-  if not next(active_turrets) then return end
-
-  local turret_update_mod = event.tick % turret_update_interval
-  for k, turret_data in pairs (active_turrets) do
-    if (k * 8) % turret_update_interval == turret_update_mod then
-      if update_turret(turret_data) then
-        active_turrets[k] = nil
-      end
-    end
+  local bucket_index = event.tick % TURRET_UPDATE_INTERVAL
+  local bucket = active_turrets[bucket_index]
+  if not bucket then return end
+  for unit_number, turret in pairs(bucket) do
+    turret:update()
   end
-
 end
 
 local check_ghost = function(unit_number, entity)
   if not (entity and entity.valid) then return true end
 
-  --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
-
-  local active_turrets = script_data.active_turrets
   local turrets = find_nearby_turrets(entity)
 
   for turret_unit_number, turret in pairs (turrets) do
-    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Added to list"}
-    local turret_data = active_turrets[turret_unit_number]
-    if turret_data then
-      turret_data.targets[unit_number] = entity
-    else
-      turret_data =
-      {
-        turret = turret,
-        targets = {[unit_number] = entity}
-      }
-      active_turrets[turret_unit_number] = turret_data
-    end
+    turret:add_target(entity)
   end
 
 end
@@ -934,28 +990,14 @@ local check_ghost_check_queue = function()
 
 end
 
-local check_deconstruction = function(index, entity)
+local check_deconstruction = function(entity)
   if not (entity and entity.valid) then return true end
+  if (entity.type == "cliff") then return end
   if not entity.to_be_deconstructed() then return end
 
-  --entity.surface.create_entity{name = "flying-text", position = entity.position, text = "?"}
-
-  local active_turrets = script_data.active_turrets
   local turrets = find_nearby_turrets(entity, true)
-
   for turret_unit_number, turret in pairs (turrets) do
-    --turret.surface.create_entity{name = "flying-text", position = turret.position, text = "Added to list"}
-    local turret_data = active_turrets[turret_unit_number]
-    if turret_data then
-      turret_data.targets[index] = entity
-    else
-      turret_data =
-      {
-        turret = turret,
-        targets = {[index] = entity}
-      }
-      active_turrets[turret_unit_number] = turret_data
-    end
+    turret:add_target(entity)
   end
 
 end
@@ -965,15 +1007,10 @@ local check_deconstruction_check_queue = function()
 
   local deconstruct_check_queue = script_data.deconstruct_check_queue
   for k = 1, deconstruct_check_count do
-
     local index, entity = next(deconstruct_check_queue)
     if not index then return end
-
     deconstruct_check_queue[index] = nil
-
-    if entity.valid and entity.type ~= "cliff" then
-      check_deconstruction(entity.unit_number or (entity.position.x.."-"..entity.position.y), entity)
-    end
+    check_deconstruction(entity)
   end
 
 end
@@ -995,7 +1032,7 @@ end
 local on_entity_damaged = function(event)
 
   local entity = event.entity
-  if not (entity and entity.valid) then
+  if not (entity and entity.valid and entity.unit_number) then
     return
   end
 
@@ -1025,7 +1062,7 @@ local on_research_finished = function(event)
   end
 
   if name == "repair-turret-construction" then
-    script_data.can_construct[research.force.name] = true
+    script_data.can_construct[research.force.index] = true
   end
 
 end
@@ -1058,12 +1095,12 @@ local set_damaged_event_filter = function()
 
   if not next(filters) then return end
 
-  script.set_event_filter(defines.events.on_entity_damaged, filters)
+  --script.set_event_filter(defines.events.on_entity_damaged, filters)
 end
 
 local update_non_repairable_entities = function()
   script_data.non_repairable_entities = {}
-  for name, entity in pairs (game.entity_prototypes) do
+  for name, entity in pairs(prototypes.entity) do
     if entity.has_flag("not-repairable") then
       script_data.non_repairable_entities[name] = true
     end
@@ -1078,24 +1115,32 @@ local on_post_entity_died = function(event)
   end
 end
 
-local insert = table.insert
 local on_marked_for_deconstruction = function(event)
   local entity = event.entity
   if entity and entity.valid then
-    insert(script_data.deconstruct_check_queue, entity)
+    script_data.deconstruct_check_queue[get_unit_number(entity)] = entity
   end
+end
+
+local entity_type = defines.target_type.entity
+local on_object_destroyed = function(event)
+  if event.type ~= entity_type then return end
+  local turret = RepairTurret.get_turret(event.useful_id)
+  if not turret then return end
+  turret:on_destroyed()
 end
 
 local lib = {}
 
 lib.events =
 {
-  --[defines.events.on_player_created] = on_player_created,
+  [defines.events.on_player_created] = on_player_created,
   [defines.events.on_built_entity] = on_created_entity,
   [defines.events.on_robot_built_entity] = on_created_entity,
   [defines.events.script_raised_built] = on_created_entity,
   [defines.events.script_raised_revive] = on_created_entity,
   [defines.events.on_entity_cloned] = on_created_entity,
+  [defines.events.on_space_platform_built_entity] = on_created_entity,
 
   [defines.events.on_tick] = on_tick,
   [defines.events.on_entity_damaged] = on_entity_damaged,
@@ -1105,6 +1150,9 @@ lib.events =
   [defines.events.script_raised_destroy] = on_entity_removed,
   [defines.events.on_player_mined_entity] = on_entity_removed,
   [defines.events.on_robot_mined_entity] = on_entity_removed,
+  [defines.events.on_space_platform_mined_entity] = on_entity_removed,
+
+  [defines.events.on_object_destroyed] = on_object_destroyed,
 
   [defines.events.on_post_entity_died] = on_post_entity_died,
 
@@ -1115,13 +1163,13 @@ lib.events =
 }
 
 lib.on_init = function()
-  global.repair_turret = global.repair_turret or script_data
+  storage.repair_turret = storage.repair_turret or script_data
   pathfinding.cache = script_data.pathfinder_cache
   script_data.proxy_inventory = game.create_inventory(200)
 end
 
 lib.on_load = function()
-  script_data = global.repair_turret or script_data
+  script_data = storage.repair_turret or script_data
   pathfinding.cache = script_data.pathfinder_cache
   set_damaged_event_filter()
 end
