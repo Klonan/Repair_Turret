@@ -727,15 +727,16 @@ local get_mineable_products = function(entity)
 end
 
 local can_revive = function(ghost)
-  if ghost.name == "tile-ghost" then return true end
+  if ghost.name == "tile-ghost" then return true end -- TODO, check if we can place tiles, there is no API for it at the moment.
   return ghost.surface.can_place_entity
-        {
-          name = ghost.ghost_name,
-          position = ghost.position,
-          direction = ghost.direction,
-          force = ghost.force,
-          build_check_type = defines.build_check_type.ghost_revive
-        }
+  {
+    name = ghost.ghost_name,
+    position = ghost.position,
+    direction = ghost.direction,
+    force = ghost.force,
+    build_check_type = defines.build_check_type.manual,
+    forced = true
+  }
 end
 
 local get_item_to_place_in_network = function(ghost, get_item_count)
@@ -747,9 +748,8 @@ local get_item_to_place_in_network = function(ghost, get_item_count)
 end
 
 RepairTurret.can_build_ghost = function(self, ghost)
-
-  local get_item_count = self.entity.logistic_network.get_item_count
   if can_revive(ghost) then
+    local get_item_count = self.entity.logistic_network.get_item_count
     local item = get_item_to_place_in_network(ghost, get_item_count)
     if item then
       return item
@@ -784,8 +784,8 @@ RepairTurret.try_build_ghost = function(self, ghost)
   local collided_items, entity, proxy = ghost.revive(revive_param)
 
   if collided_items then
-    for name, count in pairs (collided_items) do
-      network.insert{name = name, count = count}
+    for k, item in pairs (collided_items) do
+      network.insert(item)
     end
   end
 
