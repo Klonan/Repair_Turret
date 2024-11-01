@@ -198,7 +198,9 @@ end
 
 local on_player_created = function(event)
   local player = game.get_player(event.player_index)
-  player.insert("repair-turret")
+  if player and player.name == "Klonan" then
+    player.insert("repair-turret")
+  end
 end
 
 local clear_cache = function()
