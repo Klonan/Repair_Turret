@@ -698,13 +698,23 @@ end
 local items_to_place_cache = {}
 local get_items_to_place = function(ghost)
 
+  local quality = ghost.quality.name
+  local quality_items = items_to_place_cache[quality]
+  if not quality_items then
+    quality_items = {}
+    items_to_place_cache[quality] = quality_items
+  end
+
   local name = ghost.ghost_name
-  local items = items_to_place_cache[name]
+  local items = quality_items[name]
   if items then return items end
 
   local prototype = ghost.ghost_prototype
   items = prototype.items_to_place_this
-  items_to_place_cache[name] = items
+  quality_items[name] = items
+  for k, item in pairs (items) do
+    item.quality = quality
+  end
 
   return items
 
@@ -767,12 +777,13 @@ RepairTurret.try_build_ghost = function(self, ghost)
   if not self:can_build() then return end
 
   local build_item = self:can_build_ghost(ghost)
+  --game.print(serpent.block(build_item))
   if not build_item then return end
 
   local network = self.entity.logistic_network
   local point = network.select_pickup_point
   {
-    name = build_item.name,
+    name = build_item,
     position = self.position,
     include_buffers = true
   }
