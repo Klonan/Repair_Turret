@@ -27,7 +27,8 @@ local script_data =
   non_repairable_entities = {},
   ghost_check_queue = {},
   deconstruct_check_queue = {},
-  proxy_inventory = nil
+  proxy_inventory = nil,
+  prune_asteroids = false
 }
 
 local moving_entities =
@@ -1029,16 +1030,27 @@ local check_deconstruction_check_queue = function()
 end
 
 local on_tick = function(event)
+  --local profiler = game.create_profiler()
 
   check_deconstruction_check_queue()
+  --game.print({"", event.tick, " deconstruction check ", profiler})
+  --profiler.reset()
 
   check_ghost_check_queue()
+  --game.print({"", event.tick, " ghost check ", profiler})
+  --profiler.reset()
 
   check_repair_check_queue()
+  --game.print({"", event.tick, " repair check ", profiler})
+  --profiler.reset()
 
   check_moving_entity_repair(event)
+  --game.print({"", event.tick, " moving entity check ", profiler})
+  --profiler.reset()
 
   check_turret_update(event)
+  --game.print({"", event.tick, " turret update ", profiler})
+  --profiler.reset()
 
 end
 
@@ -1108,7 +1120,7 @@ local set_damaged_event_filter = function()
 
   if not next(filters) then return end
 
-  --script.set_event_filter(defines.events.on_entity_damaged, filters)
+  script.set_event_filter(defines.events.on_entity_damaged, filters)
 end
 
 local update_non_repairable_entities = function()
@@ -1266,6 +1278,23 @@ lib.on_configuration_changed = function()
   script_data.can_construct = script_data.can_construct or {}
 
   script_data.proxy_inventory = script_data.proxy_inventory or game.create_inventory(200)
+
+  if not script_data.prune_asteroids then
+    local profiler = game.create_profiler()
+    script_data.prune_asteroids = true
+    local non_repairable_entities = script_data.non_repairable_entities
+    local repair_queue = script_data.repair_check_queue
+    local new_queue = {}
+    for unit_number, entity in pairs(repair_queue) do
+      if (entity and entity.valid) then
+        if not non_repairable_entities[entity.name] then
+          new_queue[unit_number] = entity
+        end
+      end
+    end
+    script_data.repair_check_queue = new_queue
+    game.print{"", "Repair turret - Pruned repair check queue. ", profiler}
+  end
 
 end
 

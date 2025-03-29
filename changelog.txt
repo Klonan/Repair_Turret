@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.3
+Date: 2025-03-29
+  Changes:
+    - Fixed asteroids clogging up the repair queue leading to poor performance and large repair delays.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.2
 Date: 2024-11-03
   Changes:
