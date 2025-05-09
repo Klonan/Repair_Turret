@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.4
+Date: 2025-05-09
+  Changes:
+    - Fixed 'should repair' check for entities with quality.
+    - Fixed 'should repair' check for entities with high 'damage to be taken' but otherwise full health.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.3
 Date: 2025-03-29
   Changes:

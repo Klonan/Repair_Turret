@@ -361,7 +361,11 @@ end
 local entity_needs_repair = function(entity)
   local health = entity.health
   if not health then return end
-  return health - entity.get_damage_to_be_taken() < entity.max_health
+  local max_health = entity.max_health
+  if health >= max_health then
+    return
+  end
+  return health - entity.get_damage_to_be_taken() < max_health
 end
 
 local result_enum =
