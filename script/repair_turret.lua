@@ -867,7 +867,7 @@ RepairTurret.deconstruct_entity = function(self, entity)
   local force = self.entity.force
 
   if tiles then
-    surface.set_tiles(tiles)
+    surface.set_tiles(tiles, nil, nil, nil, true)
   end
 
   local source_position = {self.position.x, self.position.y - 2.5}
