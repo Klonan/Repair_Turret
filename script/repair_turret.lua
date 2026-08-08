@@ -405,7 +405,7 @@ RepairTurret.check_target = function(self, entity)
 end
 
 RepairTurret.update = function(self)
-  --local profiler = game.create_profiler()
+  --local profiler = helpers.create_profiler()
   if not self.entity.valid then
     self:on_destroyed()
     return
@@ -520,7 +520,7 @@ local max_duration = TURRET_UPDATE_INTERVAL * 8
 
 local highlight_path = function(source, path, beam_name)
 
-  --local profiler = game.create_profiler()
+  --local profiler = helpers.create_profiler()
 
   local current_duration = TURRET_UPDATE_INTERVAL
 
@@ -544,7 +544,7 @@ local highlight_path = function(source, path, beam_name)
 
   local make_beam = function(source, target)
     --count = count + 1
-    --local profiler = game.create_profiler()
+    --local profiler = helpers.create_profiler()
     local source_position = source.position
     local target_position = target.position
 
@@ -1034,7 +1034,7 @@ local check_deconstruction_check_queue = function()
 end
 
 local on_tick = function(event)
-  --local profiler = game.create_profiler()
+  --local profiler = helpers.create_profiler()
 
   check_deconstruction_check_queue()
   --game.print({"", event.tick, " deconstruction check ", profiler})
@@ -1213,7 +1213,7 @@ lib.on_configuration_changed = function()
   end
 
   if not script_data.repair_check_queue then
-    local profiler = game.create_profiler()
+    local profiler = helpers.create_profiler()
 
     script_data.repair_check_queue = {}
     script_data.active_turrets = {}
@@ -1238,7 +1238,7 @@ lib.on_configuration_changed = function()
   update_non_repairable_entities()
 
   if not script_data.ghost_check_queue then
-    local profiler = game.create_profiler()
+    local profiler = helpers.create_profiler()
 
     script_data.ghost_check_queue = {}
 
@@ -1259,7 +1259,7 @@ lib.on_configuration_changed = function()
   end
 
   if not script_data.deconstruct_check_queue then
-    local profiler = game.create_profiler()
+    local profiler = helpers.create_profiler()
 
     script_data.deconstruct_check_queue = {}
 
@@ -1284,7 +1284,7 @@ lib.on_configuration_changed = function()
   script_data.proxy_inventory = script_data.proxy_inventory or game.create_inventory(200)
 
   if not script_data.prune_asteroids then
-    local profiler = game.create_profiler()
+    local profiler = helpers.create_profiler()
     script_data.prune_asteroids = true
     local non_repairable_entities = script_data.non_repairable_entities
     local repair_queue = script_data.repair_check_queue
