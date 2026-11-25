@@ -292,7 +292,9 @@ RepairTurret.can_do_stuff_to_force = function(self, force_index, for_deconstruct
 end
 
 RepairTurret.is_valid_for_entity = function(self, entity_position, force_index, for_deconstruction)
-  assert(self.entity.valid)
+  if not (self.entity and self.entity.valid) then
+    return false
+  end
   if not self:can_do_stuff_to_force(force_index, for_deconstruction) then
     return false
   end
@@ -406,7 +408,7 @@ end
 
 RepairTurret.update = function(self)
   --local profiler = helpers.create_profiler()
-  if not self.entity.valid then
+  if not (self.entity and self.entity.valid) then
     self:on_destroyed()
     return
   end
@@ -445,7 +447,10 @@ local find_nearby_turrets = function(entity, for_deconstruction)
   local turrets = get_turrets_in_map(surface_index, x, y)
   if turrets then
     for unit_number, turret in pairs (turrets) do
-      if turret:is_valid_for_entity(position, force_index, for_deconstruction) then
+      if not (turret.entity and turret.entity.valid) then
+        turret:on_destroyed()
+        turrets[unit_number] = nil
+      elseif turret:is_valid_for_entity(position, force_index, for_deconstruction) then
         result_turrets[unit_number] = turret
       end
     end
